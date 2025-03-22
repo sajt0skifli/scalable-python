@@ -1,9 +1,6 @@
 from array import array
 import math
 import timeit
-import numba
-
-from typing import Callable, Tuple, Union
 
 from pyperformance.utils import run_benchmark
 
@@ -11,27 +8,27 @@ from pyperformance.utils import run_benchmark
 class Array2D:
     """Two-dimensional array implementation"""
 
-    def __init__(self, width: int, height: int, data=None):
-        self.width = width
-        self.height = height
-        self.data = array("d", [0]) * (width * height)
+    def __init__(self, w, h, data=None):
+        self.width = w
+        self.height = h
+        self.data = array("d", [0]) * (w * h)
         if data is not None:
             self.setup(data)
 
-    def _idx(self, x: int, y: int) -> int:
+    def _idx(self, x, y):
         if 0 <= x < self.width and 0 <= y < self.height:
             return y * self.width + x
-        raise IndexError(f"Coordinates out of bounds: ({x}, {y})")
+        raise IndexError
 
-    def __getitem__(self, x_y: Tuple[int, int]) -> float:
-        x, y = x_y
+    def __getitem__(self, x_y):
+        (x, y) = x_y
         return self.data[self._idx(x, y)]
 
-    def __setitem__(self, x_y: Tuple[int, int], val: float):
-        x, y = x_y
+    def __setitem__(self, x_y, val):
+        (x, y) = x_y
         self.data[self._idx(x, y)] = val
 
-    def setup(self, data) -> "Array2D":
+    def setup(self, data):
         for y in range(self.height):
             for x in range(self.width):
                 self[x, y] = data[y][x]
@@ -42,17 +39,17 @@ class Array2D:
             for x in range(self.width):
                 yield x, y
 
-    def copy_data_from(self, other: "Array2D"):
+    def copy_data_from(self, other):
         self.data[:] = other.data[:]
 
 
 class ArrayList(Array2D):
     """Array2D variant with list-of-arrays implementation"""
 
-    def __init__(self, width: int, height: int, data=None):
-        self.width = width
-        self.height = height
-        self.data = [array("d", [0]) * width for _ in range(height)]
+    def __init__(self, w, h, data=None):
+        self.width = w
+        self.height = h
+        self.data = [array("d", [0]) * w for _ in range(h)]
         if data is not None:
             self.setup(data)
 
@@ -68,7 +65,7 @@ class ArrayList(Array2D):
         else:
             self.data[idx] = val
 
-    def copy_data_from(self, other: "ArrayList"):
+    def copy_data_from(self, other):
         for l1, l2 in zip(self.data, other.data):
             l1[:] = l2
 
@@ -82,33 +79,34 @@ class Random:
     m2 = ONE << MDIG // 2
     dm1 = 1.0 / float(m1)
 
-    def __init__(self, seed: int):
+    def __init__(self, seed):
         self.initialize(seed)
         self.left = 0.0
         self.right = 1.0
         self.width = 1.0
         self.haveRange = False
 
-    def initialize(self, seed: int):
+    def initialize(self, seed):
+
         self.seed = seed
         seed = abs(seed)
         jseed = min(seed, self.m1)
         if jseed % 2 == 0:
             jseed -= 1
         k0 = 9069 % self.m2
-        k1 = 9069 // self.m2
+        k1 = 9069 / self.m2
         j0 = jseed % self.m2
-        j1 = jseed // self.m2
+        j1 = jseed / self.m2
         self.m = array("d", [0]) * 17
         for iloop in range(17):
             jseed = j0 * k0
-            j1 = (jseed // self.m2 + j0 * k1 + j1 * k0) % (self.m2 // 2)
+            j1 = (jseed / self.m2 + j0 * k1 + j1 * k0) % (self.m2 / 2)
             j0 = jseed % self.m2
             self.m[iloop] = j0 + self.m2 * j1
         self.i = 4
         self.j = 16
 
-    def nextDouble(self) -> float:
+    def nextDouble(self):
         I, J, m = self.i, self.j, self.m
         k = m[I] - m[J]
         if k < 0:
@@ -127,32 +125,30 @@ class Random:
             J -= 1
         self.j = J
 
-        return (
-            self.left + self.dm1 * float(k) * self.width
-            if self.haveRange
-            else self.dm1 * float(k)
-        )
+        if self.haveRange:
+            return self.left + self.dm1 * float(k) * self.width
+        else:
+            return self.dm1 * float(k)
 
-    def RandomMatrix(self, a: Union[Array2D, ArrayList]):
+    def RandomMatrix(self, a):
         for x, y in a.indexes():
             a[x, y] = self.nextDouble()
         return a
 
-    def RandomVector(self, n: int):
+    def RandomVector(self, n):
         return array("d", [self.nextDouble() for _ in range(n)])
 
 
 def copy_vector(vec):
-    """Create a copy of a vector"""
+    """Copy a vector created by Random.RandomVector()"""
     vec2 = array("d")
     vec2[:] = vec[:]
     return vec2
 
 
-# SOR (Successive Over-Relaxation) Benchmark
-def SOR_execute(omega: float, G: Union[Array2D, ArrayList], cycles: int, _):
-    """Implementation of the SOR algorithm"""
-    for _ in range(cycles):
+def SOR_execute(omega, G, cycles, Array):
+    """Implementation of SOR (Successive Over-Relaxation) algorithm"""
+    for p in range(cycles):
         for y in range(1, G.height - 1):
             for x in range(1, G.width - 1):
                 G[x, y] = (
@@ -163,7 +159,7 @@ def SOR_execute(omega: float, G: Union[Array2D, ArrayList], cycles: int, _):
                 )
 
 
-def bench_SOR(loops: int, n: int, cycles: int, Array: Callable):
+def bench_SOR(loops, n, cycles, Array):
     """Benchmark for SOR algorithm"""
 
     def run_sor():
@@ -174,9 +170,7 @@ def bench_SOR(loops: int, n: int, cycles: int, Array: Callable):
 
 
 # Sparse Matrix Multiplication Benchmark
-def SparseCompRow_matmult(
-    M: int, y: array, val: array, row: array, col: array, x: array, num_iterations: int
-):
+def SparseCompRow_matmult(M, y, val, row, col, x, num_iterations):
     """Sparse matrix multiplication implementation"""
     for _ in range(num_iterations):
         for r in range(M):
@@ -186,7 +180,7 @@ def SparseCompRow_matmult(
             y[r] = sa
 
 
-def bench_SparseMatMult(cycles: int, N: int, nz: int):
+def bench_SparseMatMult(cycles, N, nz):
     """Benchmark for sparse matrix multiplication"""
     x = array("d", [0]) * N
     y = array("d", [0]) * N
@@ -214,7 +208,7 @@ def bench_SparseMatMult(cycles: int, N: int, nz: int):
 
 
 # Monte Carlo Benchmark
-def MonteCarlo(Num_samples: int) -> float:
+def MonteCarlo(Num_samples):
     """Monte Carlo pi calculation implementation"""
     rnd = Random(113)
     under_curve = 0
@@ -226,18 +220,16 @@ def MonteCarlo(Num_samples: int) -> float:
     return float(under_curve) / Num_samples * 4.0
 
 
-def bench_MonteCarlo(loops: int, Num_samples: int):
+def bench_MonteCarlo(loops, Num_samples):
     """Benchmark for Monte Carlo pi calculation"""
 
     def run_monte_carlo():
-        for _ in range(loops):
-            MonteCarlo(Num_samples)
+        MonteCarlo(Num_samples)
 
-    return timeit.timeit(run_monte_carlo, number=1)
+    return timeit.timeit(run_monte_carlo, number=loops)
 
 
-# LU Decomposition Benchmark
-def LU_factor(A: ArrayList, pivot: array):
+def LU_factor(A, pivot):
     """LU factorization implementation"""
     M, N = A.height, A.width
     minMN = min(M, N)
@@ -272,13 +264,13 @@ def LU_factor(A: ArrayList, pivot: array):
                     A[ii][jj] -= A[ii][j] * A[j][jj]
 
 
-def LU(lu: ArrayList, A: ArrayList, pivot: array):
+def LU(lu: ArrayList, A, pivot):
     """LU decomposition wrapper"""
     lu.copy_data_from(A)
     LU_factor(lu, pivot)
 
 
-def bench_LU(cycles: int, N: int):
+def bench_LU(cycles, N):
     """Benchmark for LU decomposition"""
     rnd = Random(7)
     A = rnd.RandomMatrix(ArrayList(N, N))
@@ -292,8 +284,7 @@ def bench_LU(cycles: int, N: int):
     return timeit.timeit(run_lu, number=1)
 
 
-# FFT Benchmark
-def int_log2(n: int) -> int:
+def int_log2(n):
     """Integer log base 2"""
     k = 1
     log = 0
@@ -305,7 +296,7 @@ def int_log2(n: int) -> int:
     return log
 
 
-def FFT_bitreverse(N: int, data: array):
+def FFT_bitreverse(N, data):
     """Bit reverse routine for FFT"""
     n = N // 2
     nm1 = n - 1
@@ -328,7 +319,7 @@ def FFT_bitreverse(N: int, data: array):
         j += k
 
 
-def FFT_transform_internal(N: int, data: array, direction: int):
+def FFT_transform_internal(N, data, direction):
     """Internal FFT transform implementation"""
     n = N // 2
     if n <= 1:
@@ -380,12 +371,12 @@ def FFT_transform_internal(N: int, data: array, direction: int):
         dual *= 2
 
 
-def FFT_transform(N: int, data: array):
+def FFT_transform(N, data):
     """Forward FFT transform"""
     FFT_transform_internal(N, data, -1)
 
 
-def FFT_inverse(N: int, data: array):
+def FFT_inverse(N, data):
     """Inverse FFT transform"""
     n = N // 2
     FFT_transform_internal(N, data, +1)
@@ -395,7 +386,7 @@ def FFT_inverse(N: int, data: array):
         data[i] *= norm
 
 
-def bench_FFT(loops: int, N: int, cycles: int):
+def bench_FFT(loops, N, cycles):
     """Benchmark for FFT"""
     twoN = 2 * N
     init_vec = Random(7).RandomVector(twoN)
@@ -406,7 +397,7 @@ def bench_FFT(loops: int, N: int, cycles: int):
             FFT_transform(twoN, x)
             FFT_inverse(twoN, x)
 
-    return timeit.timeit(lambda: [run_fft() for _ in range(loops)], number=1)
+    return timeit.timeit(run_fft, number=loops)
 
 
 # Benchmark definitions
