@@ -3,6 +3,11 @@ import argparse
 
 
 BENCHMARK_SUITES = [
+    "chaos",
+    "crypto",
+    "nbody",
+    "nqueens",
+    "raytrace",
     "scimark",
 ]
 
