@@ -10,9 +10,7 @@ From http://www.lshift.net/blog/2008/10/29/toy-raytracer-in-python
 
 import array
 import math
-import timeit
-
-from pyperformance.utils import run_benchmark
+import pyperf
 
 
 DEFAULT_WIDTH = 100
@@ -369,15 +367,17 @@ def create_scene():
 
 def bench_raytrace(loops, width=DEFAULT_WIDTH, height=DEFAULT_HEIGHT, filename=None):
     """Benchmark for raytracing"""
+    range_it = range(loops)
+    t0 = pyperf.perf_counter()
 
-    def run_raytracer():
+    for _ in range_it:
         canvas = Canvas(width, height)
         scene = create_scene()
         scene.render(canvas)
         if filename:
             canvas.write_ppm(filename)
 
-    return timeit.timeit(run_raytracer, number=loops)
+    return pyperf.perf_counter() - t0
 
 
 # Benchmark definitions
@@ -387,5 +387,9 @@ BENCHMARKS = {
 
 
 if __name__ == "__main__":
-    for bench_name in sorted(BENCHMARKS):
-        run_benchmark(bench_name, BENCHMARKS, 20)
+    runner = pyperf.Runner()
+    runner.argparser.set_defaults(quiet=False)
+    for bench in sorted(BENCHMARKS):
+        name = "raytrace_%s" % bench
+        args = BENCHMARKS[bench]
+        runner.bench_time_func(name, *args)

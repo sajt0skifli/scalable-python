@@ -1,7 +1,6 @@
 """Simple, brute-force N-Queens solver."""
 
-import timeit
-from pyperformance.utils import run_benchmark
+import pyperf
 
 
 # Pure-Python implementation of itertools.permutations().
@@ -54,11 +53,13 @@ def n_queens(queen_count):
 
 def bench_nqueens(loops, queen_count=8):
     """Benchmark for N-Queens solver"""
+    range_it = range(loops)
+    t0 = pyperf.perf_counter()
 
-    def run_nqueens():
+    for _ in range_it:
         list(n_queens(queen_count))
 
-    return timeit.timeit(run_nqueens, number=loops)
+    return pyperf.perf_counter() - t0
 
 
 # Benchmark definitions
@@ -68,5 +69,9 @@ BENCHMARKS = {
 
 
 if __name__ == "__main__":
-    for bench_name in sorted(BENCHMARKS):
-        run_benchmark(bench_name, BENCHMARKS, 20)
+    runner = pyperf.Runner()
+    runner.argparser.set_defaults(quiet=False)
+    for bench in sorted(BENCHMARKS):
+        name = "nqueens_%s" % bench
+        args = BENCHMARKS[bench]
+        runner.bench_time_func(name, *args)

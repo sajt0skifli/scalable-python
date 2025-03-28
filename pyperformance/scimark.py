@@ -1,8 +1,6 @@
 from array import array
 import math
-import timeit
-
-from pyperformance.utils import run_benchmark
+import pyperf
 
 
 class Array2D:
@@ -146,7 +144,7 @@ def copy_vector(vec):
     return vec2
 
 
-def SOR_execute(omega, G, cycles, Array):
+def SOR_execute(omega, G, cycles):
     """Implementation of SOR (Successive Over-Relaxation) algorithm"""
     for p in range(cycles):
         for y in range(1, G.height - 1):
@@ -161,23 +159,30 @@ def SOR_execute(omega, G, cycles, Array):
 
 def bench_SOR(loops, n, cycles, Array):
     """Benchmark for SOR algorithm"""
+    range_it = range(loops)
+    t0 = pyperf.perf_counter()
 
-    def run_sor():
+    for _ in range_it:
         G = Array(n, n)
-        SOR_execute(1.25, G, cycles, Array)
+        SOR_execute(1.25, G, cycles)
 
-    return timeit.timeit(run_sor, number=loops)
+    return pyperf.perf_counter() - t0
 
 
 # Sparse Matrix Multiplication Benchmark
 def SparseCompRow_matmult(M, y, val, row, col, x, num_iterations):
     """Sparse matrix multiplication implementation"""
-    for _ in range(num_iterations):
+    range_it = range(num_iterations)
+    t0 = pyperf.perf_counter()
+
+    for _ in range_it:
         for r in range(M):
             sa = 0.0
             for i in range(row[r], row[r + 1]):
                 sa += x[col[i]] * val[i]
             y[r] = sa
+
+    return pyperf.perf_counter() - t0
 
 
 def bench_SparseMatMult(cycles, N, nz):
@@ -201,10 +206,7 @@ def bench_SparseMatMult(cycles, N, nz):
         for i in range(nr):
             col[rowr + i] = i * step
 
-    def run_sparse():
-        SparseCompRow_matmult(N, y, val, row, col, x, cycles)
-
-    return timeit.timeit(run_sparse, number=1)
+    return SparseCompRow_matmult(N, y, val, row, col, x, cycles)
 
 
 # Monte Carlo Benchmark
@@ -222,11 +224,13 @@ def MonteCarlo(Num_samples):
 
 def bench_MonteCarlo(loops, Num_samples):
     """Benchmark for Monte Carlo pi calculation"""
+    range_it = range(loops)
+    t0 = pyperf.perf_counter()
 
-    def run_monte_carlo():
+    for _ in range_it:
         MonteCarlo(Num_samples)
 
-    return timeit.timeit(run_monte_carlo, number=loops)
+    return pyperf.perf_counter() - t0
 
 
 def LU_factor(A, pivot):
@@ -276,12 +280,13 @@ def bench_LU(cycles, N):
     A = rnd.RandomMatrix(ArrayList(N, N))
     lu = ArrayList(N, N)
     pivot = array("i", [0]) * N
+    range_it = range(cycles)
+    t0 = pyperf.perf_counter()
 
-    def run_lu():
-        for _ in range(cycles):
-            LU(lu, A, pivot)
+    for _ in range_it:
+        LU(lu, A, pivot)
 
-    return timeit.timeit(run_lu, number=1)
+    return pyperf.perf_counter() - t0
 
 
 def int_log2(n):
@@ -390,14 +395,16 @@ def bench_FFT(loops, N, cycles):
     """Benchmark for FFT"""
     twoN = 2 * N
     init_vec = Random(7).RandomVector(twoN)
+    range_it = range(loops)
+    t0 = pyperf.perf_counter()
 
-    def run_fft():
+    for _ in range_it:
         x = copy_vector(init_vec)
-        for _ in range(cycles):
+        for i in range(cycles):
             FFT_transform(twoN, x)
             FFT_inverse(twoN, x)
 
-    return timeit.timeit(run_fft, number=loops)
+    return pyperf.perf_counter() - t0
 
 
 # Benchmark definitions
@@ -410,5 +417,9 @@ BENCHMARKS = {
 }
 
 if __name__ == "__main__":
-    for bench_name in sorted(BENCHMARKS):
-        run_benchmark(bench_name, BENCHMARKS, 20)
+    runner = pyperf.Runner()
+    runner.argparser.set_defaults(quiet=False)
+    for bench in sorted(BENCHMARKS):
+        name = "scimark_%s" % bench
+        args = BENCHMARKS[bench]
+        runner.bench_time_func(name, *args)

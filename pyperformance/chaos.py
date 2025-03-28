@@ -5,10 +5,7 @@ Copyright (C) 2005 Carl Friedrich Bolz
 
 import math
 import random
-import timeit
-
-from pyperformance.utils import run_benchmark
-
+import pyperf
 
 DEFAULT_THICKNESS = 0.25
 DEFAULT_WIDTH = 256
@@ -288,10 +285,13 @@ def bench_chaos(
     splines = get_default_splines()
     chaos = Chaosgame(splines, thickness)
 
-    def run_chaos():
+    range_it = range(loops)
+    t0 = pyperf.perf_counter()
+
+    for _ in range_it:
         chaos.create_image_chaos(width, height, iterations, filename, rng_seed)
 
-    return timeit.timeit(run_chaos, number=loops)
+    return pyperf.perf_counter() - t0
 
 
 # Benchmark definitions
@@ -309,5 +309,9 @@ BENCHMARKS = {
 
 
 if __name__ == "__main__":
-    for bench_name in sorted(BENCHMARKS):
-        run_benchmark(bench_name, BENCHMARKS, 20)
+    runner = pyperf.Runner()
+    runner.argparser.set_defaults(quiet=False)
+    for bench in sorted(BENCHMARKS):
+        name = "chaos_%s" % bench
+        args = BENCHMARKS[bench]
+        runner.bench_time_func(name, *args)

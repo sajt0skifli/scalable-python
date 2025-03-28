@@ -6,9 +6,9 @@ Benchmark AES in CTR mode using the pyaes module.
 """
 
 import pyaes
-import timeit
+import pyperf
+import numba
 
-from pyperformance.utils import run_benchmark
 
 # 23,000 bytes
 CLEARTEXT = b"This is a test. What could possibly go wrong? " * 500
@@ -32,16 +32,52 @@ def aes_encrypt_decrypt(key, cleartext):
         raise Exception("decrypt error!")
 
 
+@numba.jit(nopython=False, forceobj=True)
+def aes_encrypt_decrypt_numba(key, cleartext):
+    aes = pyaes.AESModeOfOperationCTR(key)
+    ciphertext = aes.encrypt(cleartext)
+
+    # need to reset IV for decryption
+    aes = pyaes.AESModeOfOperationCTR(key)
+    plaintext = aes.decrypt(ciphertext)
+
+    # explicitly destroy the pyaes object
+    aes = None
+
+    if plaintext != cleartext:
+        raise Exception("decrypt error!")
+
+
 def bench_pyaes(loops, key=KEY, cleartext=CLEARTEXT):
-    def run_aes():
+    range_it = range(loops)
+    t0 = pyperf.perf_counter()
+
+    for _ in range_it:
         aes_encrypt_decrypt(key, cleartext)
 
-    return timeit.timeit(run_aes, number=loops)
+    return pyperf.perf_counter() - t0
 
 
-BENCHMARKS = {"aes": (bench_pyaes, KEY, CLEARTEXT)}
+def bench_pyaes_numba(loops, key=KEY, cleartext=CLEARTEXT):
+    range_it = range(loops)
+    t0 = pyperf.perf_counter()
+
+    for _ in range_it:
+        aes_encrypt_decrypt_numba(key, cleartext)
+
+    return pyperf.perf_counter() - t0
+
+
+BENCHMARKS = {
+    "aes": (bench_pyaes, KEY, CLEARTEXT),
+    # "aes_numba": (bench_pyaes_numba, KEY, CLEARTEXT),
+}
 
 
 if __name__ == "__main__":
-    for bench_name in sorted(BENCHMARKS):
-        run_benchmark(bench_name, BENCHMARKS, 20)
+    runner = pyperf.Runner()
+    runner.argparser.set_defaults(quiet=False)
+    for bench in sorted(BENCHMARKS):
+        name = "crypto_%s" % bench
+        args = BENCHMARKS[bench]
+        runner.bench_time_func(name, *args)

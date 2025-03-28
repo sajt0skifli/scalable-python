@@ -14,23 +14,13 @@ Contributed by Kevin Carson.
 Modified by Tupteq, Fredrik Johansson, and Daniel Nanz.
 """
 
-import timeit
-from pyperformance.utils import run_benchmark
+import pyperf
 
+DEFAULT_ITERATIONS = 20000
+DEFAULT_REFERENCE = "sun"
 PI = 3.14159265358979323
 SOLAR_MASS = 4 * PI * PI
 DAYS_PER_YEAR = 365.24
-DEFAULT_ITERATIONS = 20000
-
-
-def combinations(l):
-    """Pure-Python implementation of itertools.combinations(l, 2)."""
-    result = []
-    for x in range(len(l) - 1):
-        ls = l[x + 1 :]
-        for y in ls:
-            result.append((l[x], y))
-    return result
 
 
 BODIES = {
@@ -74,7 +64,21 @@ BODIES = {
 }
 
 
-def advance(dt, n, bodies, pairs):
+def combinations(l):
+    """Pure-Python implementation of itertools.combinations(l, 2)."""
+    result = []
+    for x in range(len(l) - 1):
+        ls = l[x + 1 :]
+        for y in ls:
+            result.append((l[x], y))
+    return result
+
+
+SYSTEM = list(BODIES.values())
+PAIRS = combinations(SYSTEM)
+
+
+def advance(dt, n, bodies=SYSTEM, pairs=PAIRS):
     for i in range(n):
         for ([x1, y1, z1], v1, m1), ([x2, y2, z2], v2, m2) in pairs:
             dx = x1 - x2
@@ -95,7 +99,7 @@ def advance(dt, n, bodies, pairs):
             r[2] += dt * vz
 
 
-def report_energy(bodies, pairs, e=0.0):
+def report_energy(bodies=SYSTEM, pairs=PAIRS, e=0.0):
     for ((x1, y1, z1), v1, m1), ((x2, y2, z2), v2, m2) in pairs:
         dx = x1 - x2
         dy = y1 - y2
@@ -106,7 +110,7 @@ def report_energy(bodies, pairs, e=0.0):
     return e
 
 
-def offset_momentum(ref, bodies, px=0.0, py=0.0, pz=0.0):
+def offset_momentum(ref, bodies=SYSTEM, px=0.0, py=0.0, pz=0.0):
     for r, [vx, vy, vz], m in bodies:
         px -= vx * m
         py -= vy * m
@@ -117,35 +121,29 @@ def offset_momentum(ref, bodies, px=0.0, py=0.0, pz=0.0):
     v[2] = pz / m
 
 
-def bench_nbody(loops, iterations=DEFAULT_ITERATIONS, ref_index=0):
-    """Benchmark for N-body simulation"""
+def bench_nbody(loops, reference, iterations):
+    # Set up global state
+    offset_momentum(BODIES[reference])
 
-    def run_nbody():
-        # Create a deep copy of the system to avoid modifying global state
-        system = []
-        for body in BODIES.values():
-            pos, vel, mass = body
-            system.append([pos[:], vel[:], mass])
+    range_it = range(loops)
+    t0 = pyperf.perf_counter()
 
-        pairs = combinations(system)
+    for _ in range_it:
+        report_energy()
+        advance(0.01, iterations)
+        report_energy()
 
-        # Set up initial state
-        offset_momentum(system[ref_index], system)  # Assuming sun is first
-
-        # Run simulation
-        report_energy(system, pairs)
-        advance(0.01, iterations, system, pairs)
-        report_energy(system, pairs)
-
-    return timeit.timeit(run_nbody, number=loops)
+    return pyperf.perf_counter() - t0
 
 
-# Benchmark definitions
 BENCHMARKS = {
-    "nbody": (bench_nbody, DEFAULT_ITERATIONS, 0),
+    "nbody": (bench_nbody, "sun", DEFAULT_ITERATIONS),
 }
 
-
 if __name__ == "__main__":
-    for bench_name in sorted(BENCHMARKS):
-        run_benchmark(bench_name, BENCHMARKS, 20)
+    runner = pyperf.Runner()
+    runner.argparser.set_defaults(quiet=False)
+    for bench in sorted(BENCHMARKS):
+        name = "nbody_%s" % bench
+        args = BENCHMARKS[bench]
+        runner.bench_time_func(name, *args)
