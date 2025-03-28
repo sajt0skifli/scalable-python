@@ -15,6 +15,7 @@ Modified by Tupteq, Fredrik Johansson, and Daniel Nanz.
 """
 
 import pyperf
+import numba
 
 DEFAULT_ITERATIONS = 20000
 DEFAULT_REFERENCE = "sun"
@@ -74,11 +75,7 @@ def combinations(l):
     return result
 
 
-SYSTEM = list(BODIES.values())
-PAIRS = combinations(SYSTEM)
-
-
-def advance(dt, n, bodies=SYSTEM, pairs=PAIRS):
+def advance(dt, n, bodies, pairs):
     for i in range(n):
         for ([x1, y1, z1], v1, m1), ([x2, y2, z2], v2, m2) in pairs:
             dx = x1 - x2
@@ -99,7 +96,29 @@ def advance(dt, n, bodies=SYSTEM, pairs=PAIRS):
             r[2] += dt * vz
 
 
-def report_energy(bodies=SYSTEM, pairs=PAIRS, e=0.0):
+@numba.jit
+def advance_numba(dt, n, bodies, pairs):
+    for i in range(n):
+        for ([x1, y1, z1], v1, m1), ([x2, y2, z2], v2, m2) in pairs:
+            dx = x1 - x2
+            dy = y1 - y2
+            dz = z1 - z2
+            mag = dt * ((dx * dx + dy * dy + dz * dz) ** (-1.5))
+            b1m = m1 * mag
+            b2m = m2 * mag
+            v1[0] -= dx * b2m
+            v1[1] -= dy * b2m
+            v1[2] -= dz * b2m
+            v2[0] += dx * b1m
+            v2[1] += dy * b1m
+            v2[2] += dz * b1m
+        for r, [vx, vy, vz], m in bodies:
+            r[0] += dt * vx
+            r[1] += dt * vy
+            r[2] += dt * vz
+
+
+def report_energy(bodies, pairs, e=0.0):
     for ((x1, y1, z1), v1, m1), ((x2, y2, z2), v2, m2) in pairs:
         dx = x1 - x2
         dy = y1 - y2
@@ -110,7 +129,19 @@ def report_energy(bodies=SYSTEM, pairs=PAIRS, e=0.0):
     return e
 
 
-def offset_momentum(ref, bodies=SYSTEM, px=0.0, py=0.0, pz=0.0):
+@numba.jit
+def report_energy_numba(bodies, pairs, e=0.0):
+    for ((x1, y1, z1), v1, m1), ((x2, y2, z2), v2, m2) in pairs:
+        dx = x1 - x2
+        dy = y1 - y2
+        dz = z1 - z2
+        e -= (m1 * m2) / ((dx * dx + dy * dy + dz * dz) ** 0.5)
+    for r, [vx, vy, vz], m in bodies:
+        e += m * (vx * vx + vy * vy + vz * vz) / 2.0
+    return e
+
+
+def offset_momentum(ref, bodies, px=0.0, py=0.0, pz=0.0):
     for r, [vx, vy, vz], m in bodies:
         px -= vx * m
         py -= vy * m
@@ -121,23 +152,52 @@ def offset_momentum(ref, bodies=SYSTEM, px=0.0, py=0.0, pz=0.0):
     v[2] = pz / m
 
 
+def setup(reference):
+    # Create a deep copy of the system to avoid modifying global state
+    system = []
+    for body in BODIES.values():
+        pos, vel, mass = body
+        system.append([pos[:], vel[:], mass])
+
+    pairs = combinations(system)
+
+    # Set up initial state
+    offset_momentum(system[reference], system)  # Assuming sun is first
+
+    return system, pairs
+
+
 def bench_nbody(loops, reference, iterations):
-    # Set up global state
-    offset_momentum(BODIES[reference])
+    system, pairs = setup(reference)
 
     range_it = range(loops)
     t0 = pyperf.perf_counter()
 
     for _ in range_it:
-        report_energy()
-        advance(0.01, iterations)
-        report_energy()
+        report_energy(system, pairs)
+        advance(0.01, iterations, system, pairs)
+        report_energy(system, pairs)
+
+    return pyperf.perf_counter() - t0
+
+
+def bench_nbody_numba(loops, reference, iterations):
+    system, pairs = setup(reference)
+
+    range_it = range(loops)
+    t0 = pyperf.perf_counter()
+
+    for _ in range_it:
+        report_energy_numba(system, pairs)
+        advance_numba(0.01, iterations, system, pairs)
+        report_energy_numba(system, pairs)
 
     return pyperf.perf_counter() - t0
 
 
 BENCHMARKS = {
-    "nbody": (bench_nbody, "sun", DEFAULT_ITERATIONS),
+    "nbody": (bench_nbody, 0, DEFAULT_ITERATIONS),
+    "nbody_numba": (bench_nbody_numba, 0, DEFAULT_ITERATIONS),
 }
 
 if __name__ == "__main__":
