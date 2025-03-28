@@ -1,5 +1,5 @@
 import importlib
-import argparse
+import pyperf
 
 
 BENCHMARK_SUITES = [
@@ -13,40 +13,31 @@ BENCHMARK_SUITES = [
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Run various benchmark suites")
-    parser.add_argument(
+    runner = pyperf.Runner()
+
+    runner.argparser.add_argument(
         "suite",
         nargs="?",
         choices=BENCHMARK_SUITES + ["all"],
         default="all",
         help="Benchmark suite to run (default: all)",
     )
-    parser.add_argument(
-        "-r",
-        "--repetitions",
-        type=int,
-        default=20,
-        help="Number of times to repeat each benchmark (default: 20)",
-    )
-
-    args = parser.parse_args()
+    args = runner.parse_args()
 
     if args.suite == "all":
         suites_to_run = BENCHMARK_SUITES
     else:
         suites_to_run = [args.suite]
 
-    for module_name in suites_to_run:
-        print(f"\n=== Running {module_name} benchmark suite ===\n")
+    for suite in suites_to_run:
+        # Dynamically import the benchmark suite module
+        module = importlib.import_module(f"{suite}")
 
-        # Dynamically import the benchmark module
-        module = importlib.import_module(f"pyperformance.{module_name}")
-
-        # Run all benchmarks from the module
-        from pyperformance.utils import run_benchmark
-
+        # Run each benchmark in the suite
         for bench in sorted(module.BENCHMARKS):
-            run_benchmark(bench, module.BENCHMARKS, args.repetitions)
+            name = f"{suite}_{bench}"
+            args = module.BENCHMARKS[bench]
+            runner.bench_time_func(name, *args)
 
 
 if __name__ == "__main__":
