@@ -15,10 +15,9 @@ Modified by Tupteq, Fredrik Johansson, and Daniel Nanz.
 """
 
 import pyperf
-import numba
 
 DEFAULT_ITERATIONS = 20000
-DEFAULT_REFERENCE = "sun"
+DEFAULT_REFERENCE = 0  # sun
 PI = 3.14159265358979323
 SOLAR_MASS = 4 * PI * PI
 DAYS_PER_YEAR = 365.24
@@ -96,41 +95,7 @@ def advance(dt, n, bodies, pairs):
             r[2] += dt * vz
 
 
-@numba.jit
-def advance_numba(dt, n, bodies, pairs):
-    for i in range(n):
-        for ([x1, y1, z1], v1, m1), ([x2, y2, z2], v2, m2) in pairs:
-            dx = x1 - x2
-            dy = y1 - y2
-            dz = z1 - z2
-            mag = dt * ((dx * dx + dy * dy + dz * dz) ** (-1.5))
-            b1m = m1 * mag
-            b2m = m2 * mag
-            v1[0] -= dx * b2m
-            v1[1] -= dy * b2m
-            v1[2] -= dz * b2m
-            v2[0] += dx * b1m
-            v2[1] += dy * b1m
-            v2[2] += dz * b1m
-        for r, [vx, vy, vz], m in bodies:
-            r[0] += dt * vx
-            r[1] += dt * vy
-            r[2] += dt * vz
-
-
 def report_energy(bodies, pairs, e=0.0):
-    for ((x1, y1, z1), v1, m1), ((x2, y2, z2), v2, m2) in pairs:
-        dx = x1 - x2
-        dy = y1 - y2
-        dz = z1 - z2
-        e -= (m1 * m2) / ((dx * dx + dy * dy + dz * dz) ** 0.5)
-    for r, [vx, vy, vz], m in bodies:
-        e += m * (vx * vx + vy * vy + vz * vz) / 2.0
-    return e
-
-
-@numba.jit
-def report_energy_numba(bodies, pairs, e=0.0):
     for ((x1, y1, z1), v1, m1), ((x2, y2, z2), v2, m2) in pairs:
         dx = x1 - x2
         dy = y1 - y2
@@ -181,23 +146,19 @@ def bench_nbody(loops, reference, iterations):
     return pyperf.perf_counter() - t0
 
 
-def bench_nbody_numba(loops, reference, iterations):
-    system, pairs = setup(reference)
+def print_results():
+    system, pairs = setup(DEFAULT_REFERENCE)
+    initial_energy = report_energy(system, pairs)
+    advance(0.01, DEFAULT_ITERATIONS, system, pairs)
+    final_energy = report_energy(system, pairs)
 
-    range_it = range(loops)
-    t0 = pyperf.perf_counter()
-
-    for _ in range_it:
-        report_energy_numba(system, pairs)
-        advance_numba(0.01, iterations, system, pairs)
-        report_energy_numba(system, pairs)
-
-    return pyperf.perf_counter() - t0
+    print(f"Initial energy: {initial_energy}")
+    print(f"Final energy: {final_energy}")
+    print(f"Energy delta: {abs(final_energy - initial_energy)}")
 
 
 BENCHMARKS = {
-    "nbody": (bench_nbody, 0, DEFAULT_ITERATIONS),
-    "nbody_numba": (bench_nbody_numba, 0, DEFAULT_ITERATIONS),
+    "nbody": (bench_nbody, DEFAULT_REFERENCE, DEFAULT_ITERATIONS),
 }
 
 if __name__ == "__main__":
@@ -207,3 +168,4 @@ if __name__ == "__main__":
         name = "nbody_%s" % bench
         args = BENCHMARKS[bench]
         runner.bench_time_func(name, *args)
+    print_results()
