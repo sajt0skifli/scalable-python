@@ -75,9 +75,15 @@ def bench_nqueens_numba(loops, queen_count=8):
     t0 = pyperf.perf_counter()
 
     for _ in range_it:
-        n_queens_numba(queen_count)
+        list(n_queens_numba(queen_count))
 
     return pyperf.perf_counter() - t0
+
+
+def print_results():
+    res = list(n_queens_numba(8))
+    for i, r in enumerate(res):
+        print(f"Solution {i}: {r}")
 
 
 # Benchmark definitions

@@ -2,20 +2,113 @@ import math
 import pyperf
 import numba
 import numpy as np
+from array import array
 
 
-@numba.njit
-def random_matrix(n, seed=0):
-    """Generate a random matrix using NumPy"""
-    np.random.seed(seed)
-    return np.random.random((n, n))
+class Random:
+    """Random number generator"""
+
+    MDIG = 32
+    ONE = 1
+    m1 = (ONE << (MDIG - 2)) + ((ONE << (MDIG - 2)) - ONE)
+    m2 = ONE << MDIG // 2
+    dm1 = 1.0 / float(m1)
+
+    def __init__(self, seed):
+        self.initialize(seed)
+        self.left = 0.0
+        self.right = 1.0
+        self.width = 1.0
+        self.haveRange = False
+
+    def initialize(self, seed):
+
+        self.seed = seed
+        seed = abs(seed)
+        jseed = min(seed, self.m1)
+        if jseed % 2 == 0:
+            jseed -= 1
+        k0 = 9069 % self.m2
+        k1 = 9069 / self.m2
+        j0 = jseed % self.m2
+        j1 = jseed / self.m2
+        self.m = array("d", [0]) * 17
+        for iloop in range(17):
+            jseed = j0 * k0
+            j1 = (jseed / self.m2 + j0 * k1 + j1 * k0) % (self.m2 / 2)
+            j0 = jseed % self.m2
+            self.m[iloop] = j0 + self.m2 * j1
+        self.i = 4
+        self.j = 16
+
+    def nextDouble(self):
+        I, J, m = self.i, self.j, self.m
+        k = m[I] - m[J]
+        if k < 0:
+            k += self.m1
+        self.m[J] = k
+
+        if I == 0:
+            I = 16
+        else:
+            I -= 1
+        self.i = I
+
+        if J == 0:
+            J = 16
+        else:
+            J -= 1
+        self.j = J
+
+        if self.haveRange:
+            return self.left + self.dm1 * float(k) * self.width
+        else:
+            return self.dm1 * float(k)
+
+    def RandomMatrix(self, a):
+        for x, y in a.indexes():
+            a[x, y] = self.nextDouble()
+        return a
+
+    def RandomVector(self, n):
+        return array("d", [self.nextDouble() for _ in range(n)])
 
 
-@numba.njit
-def random_vector(n, seed=0):
-    """Generate a random vector using NumPy"""
-    np.random.seed(seed)
-    return np.random.random(n)
+def random_vector_numpy(size, seed=7):
+    # Generate values using the custom Random implementation
+    rnd = Random(seed)
+    custom_vector = rnd.RandomVector(size)
+
+    # Convert to NumPy array
+    return np.array(custom_vector, dtype=np.float64)
+
+
+def random_matrix_numpy(rows, cols, seed=7):
+    # Use custom Random generator to create values
+    rnd = Random(seed)
+    matrix = []
+    for i in range(rows):
+        row_values = array("d", [0]) * cols
+        for j in range(cols):
+            row_values[j] = rnd.nextDouble()
+        matrix.append(row_values)
+
+    # Convert to NumPy array
+    return np.array(matrix, dtype=np.float64)
+
+
+# @numba.njit
+# def random_matrix(n, seed=0):
+#     """Generate a random matrix using NumPy"""
+#     np.random.seed(seed)
+#     return np.random.random((n, n))
+#
+#
+# @numba.njit
+# def random_vector(n, seed=0):
+#     """Generate a random vector using NumPy"""
+#     np.random.seed(seed)
+#     return np.random.random(n)
 
 
 @numba.njit
@@ -155,7 +248,7 @@ def LU_factor(A):
                 for jj in range(j + 1, N):
                     A[ii, jj] -= A[ii, j] * A[j, jj]
 
-    return A, pivot
+    return A
 
 
 def bench_LU(cycles, N):
@@ -302,6 +395,56 @@ def bench_FFT(loops, N, cycles):
     return pyperf.perf_counter() - t0
 
 
+def print_results():
+    # FFT
+    init_vec = random_vector_numpy(2 * 1024)
+    x = init_vec.copy()
+    print(f"FFT-before: {x}")
+    x = FFT_transform(x)
+    print(f"FFT-transform: {x}")
+    x = FFT_inverse(x)
+    print(f"FFT-after: {x}")
+
+    # LU
+    A = random_matrix_numpy(100, 100)
+    print(f"LU-before: {A}")
+    retA = LU_factor(A.copy())
+    print(f"LU-after: {retA}")
+
+    # Monte Carlo
+    retM = MonteCarlo(100000)
+    print(f"Monte Carlo: {retM}")
+
+    # Sparse Matrix Multiplication
+    x = np.arange(1, 1000 + 1, dtype=np.float64)
+    y = np.zeros(1000, dtype=np.float64)
+
+    nr = (50 * 1000) // 1000
+    anz = nr * 1000
+    val = np.ones(anz, dtype=np.float64)
+    col = np.zeros(50 * 1000, dtype=np.int32)
+    row = np.zeros(1000 + 1, dtype=np.int32)
+
+    row[0] = 0
+    for r in range(1000):
+        rowr = row[r]
+        step = max(r // nr, 1)
+        row[r + 1] = rowr + nr
+        for i in range(nr):
+            col[rowr + i] = i * step
+    print(f"SMM-before: {y}")
+    SparseCompRow_matmult(y, val, row, col, x)
+    print(f"SMM-after: {y}")
+
+    # SOR
+    G = random_matrix_numpy(100, 100)
+    print(f"SOR-before: {G}")
+    print(G[2, 2])
+    retG = SOR_execute(1.25, G, 10)
+    print(f"SOR-after: {retG}")
+    print(G[2, 2])
+
+
 # Benchmark definitions
 BENCHMARKS = {
     "sor": (bench_SOR, 100, 10),
@@ -318,3 +461,4 @@ if __name__ == "__main__":
         name = "scimark_numba_%s" % bench
         args = BENCHMARKS[bench]
         runner.bench_time_func(name, *args)
+    print_results()

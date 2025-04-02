@@ -63,6 +63,12 @@ def bench_nqueens(loops, queen_count=8):
     return pyperf.perf_counter() - t0
 
 
+def print_results():
+    res = list(n_queens(8))
+    for i, r in enumerate(res):
+        print(f"Solution {i}: {r}")
+
+
 # Benchmark definitions
 BENCHMARKS = {
     "nqueens": (bench_nqueens, 8),

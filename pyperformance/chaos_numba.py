@@ -51,9 +51,12 @@ def spline_get_domain(knots, degree):
 
 @numba.njit
 def spline_get_index(u, knots, degree):
+    """Returns the index of the knot span containing u"""
     for ii in range(degree - 1, len(knots) - degree):
         if knots[ii] <= u < knots[ii + 1]:
             return ii
+
+    # This is exactly how the original handles the boundary case
     return len(knots) - degree - 1
 
 
@@ -172,15 +175,15 @@ def get_random_trafo(num_trafos, num_total):
 
     for i in range(len(num_trafos)):
         if l <= r < l + num_trafos[i]:
-            return i, random.randrange(num_trafos[i])
+            return i, random.randrange(int(num_trafos[i]))
         l += num_trafos[i]
 
-    return len(num_trafos) - 1, random.randrange(num_trafos[-1])
+    return len(num_trafos) - 1, random.randrange(int(num_trafos[-1]))
 
 
 @numba.njit
 def truncate_point(x, y, minx, miny, maxx, maxy):
-    """Truncate point to stay within bounds"""
+    """Truncate point with identical behavior to the original"""
     if x >= maxx:
         x = maxx
     if y >= maxy:
@@ -214,14 +217,14 @@ def transform_point(
     trafo_idx=None,
     trafo_val=None,
 ):
-    """Transform a point using the chaos game rules"""
+    """Transform point exactly as in the original implementation"""
     x = (point_x - minx) / width
     y = (point_y - miny) / height
 
     if trafo_idx is None or trafo_val is None:
         trafo_idx, trafo_val = get_random_trafo(num_trafos, num_total)
 
-    # Get domain and calculate t
+    # Match original domain calculation
     start, end = spline_get_domain(splines_knots[trafo_idx], splines_degrees[trafo_idx])
     length = end - start
     seg_length = length / num_trafos[trafo_idx]
@@ -237,7 +240,7 @@ def transform_point(
         splines_degrees[trafo_idx],
     )
 
-    # Get derivative
+    # Calculate derivative exactly as in original
     if t + 1 / 50000 > end:
         neighbour_x, neighbour_y, neighbour_z = spline_call(
             t - 1 / 50000,
@@ -247,9 +250,11 @@ def transform_point(
             splines_knots[trafo_idx],
             splines_degrees[trafo_idx],
         )
-        derivative_x = neighbour_x - basepoint_x
-        derivative_y = neighbour_y - basepoint_y
-        derivative_z = neighbour_z - basepoint_z
+        derivative_x, derivative_y, derivative_z = (
+            neighbour_x - basepoint_x,
+            neighbour_y - basepoint_y,
+            neighbour_z - basepoint_z,
+        )
     else:
         neighbour_x, neighbour_y, neighbour_z = spline_call(
             t + 1 / 50000,
@@ -259,17 +264,19 @@ def transform_point(
             splines_knots[trafo_idx],
             splines_degrees[trafo_idx],
         )
-        derivative_x = basepoint_x - neighbour_x
-        derivative_y = basepoint_y - neighbour_y
-        derivative_z = basepoint_z - neighbour_z
+        derivative_x, derivative_y, derivative_z = (
+            basepoint_x - neighbour_x,
+            basepoint_y - neighbour_y,
+            basepoint_z - neighbour_z,
+        )
 
-    # Calculate new point
+    # Apply offset based on derivative (match original exactly)
     mag = gvector_mag(derivative_x, derivative_y, derivative_z)
     if mag != 0:
         basepoint_x += derivative_y / mag * (y - 0.5) * thickness
         basepoint_y += -derivative_x / mag * (y - 0.5) * thickness
 
-    # Truncate
+    # Truncate coordinates
     basepoint_x, basepoint_y = truncate_point(
         basepoint_x, basepoint_y, minx, miny, maxx, maxy
     )
@@ -298,19 +305,18 @@ def create_image_chaos(
     thickness,
     rng_seed=DEFAULT_RNG_SEED,
 ):
-    """Create a chaos game fractal image"""
-    # Set random seed for reproducibility
+    """Create a chaos game fractal image with identical results to original"""
+    # Reset random seed exactly as in original
     random.seed(rng_seed)
 
-    # Create image array (initialized to 1)
+    # Create image array using NumPy
     im = np.ones((w, h), dtype=np.uint8)
 
-    # Start at middle point
+    # Use identical starting point
     point_x = (maxx + minx) / 2
     point_y = (maxy + miny) / 2
     point_z = 0
 
-    # Run iterations
     for _ in range(iterations):
         point_x, point_y, point_z = transform_point(
             point_x,
@@ -332,24 +338,24 @@ def create_image_chaos(
             thickness,
         )
 
-        # Map point to image coordinates
+        # Convert to pixel coordinates exactly as in original
         x = int((point_x - minx) / width * w)
         y = int((point_y - miny) / height * h)
 
-        # Boundary check
+        # Apply identical boundary checks
         if x == w:
             x -= 1
         if y == h:
             y -= 1
 
-        # Set pixel
+        # FIXED: Use comma notation for 2D array indexing
         im[x, h - y - 1] = 0
 
     return im
 
 
 def write_ppm(im, filename):
-    """Write image to PPM file"""
+    """Write image to PPM file with identical output to original"""
     w, h = im.shape
 
     with open(filename, "w", encoding="latin1", newline="") as fp:
@@ -358,6 +364,7 @@ def write_ppm(im, filename):
 
         for j in range(h):
             for i in range(w):
+                # Use comma indexing
                 val = im[i, j]
                 c = val * 255
                 fp.write("%c%c%c" % (c, c, c))
@@ -472,7 +479,7 @@ BENCHMARKS = {
         DEFAULT_ITERATIONS,
         DEFAULT_THICKNESS,
         DEFAULT_RNG_SEED,
-        "fractal.ppm",
+        "fractal_numba.ppm",
     ),
 }
 

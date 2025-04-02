@@ -40,6 +40,13 @@ class Array2D:
     def copy_data_from(self, other):
         self.data[:] = other.data[:]
 
+    def print_sample(self):
+        # Print samples
+        for y in range(5):
+            for x in range(5):
+                print(self[x, y], end=" ")
+            print()
+
 
 class ArrayList(Array2D):
     """Array2D variant with list-of-arrays implementation"""
@@ -137,6 +144,22 @@ class Random:
         return array("d", [self.nextDouble() for _ in range(n)])
 
 
+def print_sample(arr):
+    # Print first 10 and last 10 items if the array is larger than 20 elements.
+    arr_list = list(arr)
+    if len(arr_list) > 20:
+        sample = arr_list[:10] + ["..."] + arr_list[-10:]
+    else:
+        sample = arr_list
+    print(f"{sample}")
+
+
+def print_row(G, row):
+    for x in range(1, G.width - 1):
+        print(f"{G[x, row]}", end=" ")
+    print("")
+
+
 def copy_vector(vec):
     """Copy a vector created by Random.RandomVector()"""
     vec2 = array("d")
@@ -157,42 +180,38 @@ def SOR_execute(omega, G, cycles):
                 )
 
 
-def bench_SOR(loops, n, cycles, Array):
+def bench_SOR(loops, n, cycles):
     """Benchmark for SOR algorithm"""
     range_it = range(loops)
     t0 = pyperf.perf_counter()
 
     for _ in range_it:
-        G = Array(n, n)
+        G = Array2D(n, n)
         SOR_execute(1.25, G, cycles)
 
     return pyperf.perf_counter() - t0
 
 
 # Sparse Matrix Multiplication Benchmark
-def SparseCompRow_matmult(M, y, val, row, col, x, num_iterations):
+def SparseCompRow_matmult(M, y, val, row, col, x):
     """Sparse matrix multiplication implementation"""
-    range_it = range(num_iterations)
-    t0 = pyperf.perf_counter()
+    for r in range(M):
+        sa = 0.0
+        for i in range(row[r], row[r + 1]):
+            sa += x[col[i]] * val[i]
+        y[r] = sa
 
-    for _ in range_it:
-        for r in range(M):
-            sa = 0.0
-            for i in range(row[r], row[r + 1]):
-                sa += x[col[i]] * val[i]
-            y[r] = sa
-
-    return pyperf.perf_counter() - t0
+    return y
 
 
 def bench_SparseMatMult(cycles, N, nz):
     """Benchmark for sparse matrix multiplication"""
-    x = array("d", [0]) * N
+    x = array("d", [float(i + 1) for i in range(N)])
     y = array("d", [0]) * N
 
     nr = nz // N
     anz = nr * N
-    val = array("d", [0]) * anz
+    val = array("d", [1.0]) * anz
     col = array("i", [0]) * nz
     row = array("i", [0]) * (N + 1)
 
@@ -206,7 +225,13 @@ def bench_SparseMatMult(cycles, N, nz):
         for i in range(nr):
             col[rowr + i] = i * step
 
-    return SparseCompRow_matmult(N, y, val, row, col, x, cycles)
+    range_it = range(cycles)
+    t0 = pyperf.perf_counter()
+
+    for _ in range_it:
+        SparseCompRow_matmult(N, y, val, row, col, x)
+
+    return pyperf.perf_counter() - t0
 
 
 # Monte Carlo Benchmark
@@ -407,9 +432,74 @@ def bench_FFT(loops, N, cycles):
     return pyperf.perf_counter() - t0
 
 
+def print_results():
+    # FFT
+    init_vec = Random(7).RandomVector(1024 * 2)
+    x = copy_vector(init_vec)
+    print(f"FFT-before: {x}")
+    FFT_transform(1024 * 2, x)
+    print(f"FFT-transform: {x}")
+    FFT_inverse(1024 * 2, x)
+    print(f"FFT-after: {x}")
+
+    # LU
+    rnd = Random(7)
+    A = rnd.RandomMatrix(ArrayList(100, 100))
+    lu = ArrayList(100, 100)
+    lu.copy_data_from(A)
+    pivot = array("i", [0]) * 100
+    print("LU-before:")
+    lu.print_sample()
+    LU(lu, A, pivot)
+    print("LU-after:")
+    lu.print_sample()
+
+    # Monte Carlo
+    pi_approx = MonteCarlo(100000)
+    print(f"Monte Carlo: {pi_approx}")
+
+    # Sparse Matrix Mult
+    N = 1000
+    nz = 50 * 1000
+    x = array("d", [float(i + 1) for i in range(N)])
+    y = array("d", [0]) * N
+    nr = nz // N
+    anz = nr * N
+    val = array("d", [1.0]) * anz
+    col = array("i", [0]) * nz
+    row = array("i", [0]) * (N + 1)
+
+    row[0] = 0
+    for r in range(N):
+        rowr = row[r]
+        step = r // nr
+        row[r + 1] = rowr + nr
+        if step < 1:
+            step = 1
+        for i in range(nr):
+            col[rowr + i] = i * step
+
+    print(f"SMM-before:")
+    print_sample(y)
+    SparseCompRow_matmult(N, y, val, row, col, x)
+    print(f"SMM-after:")
+    print_sample(y)
+
+    # SOR
+    rnd = Random(7)
+    G = rnd.RandomMatrix(Array2D(100, 100))
+    print("SOR-before:")
+    print_row(G, 2)
+    print(G[2, 2])
+    SOR_execute(1.25, G, 10)
+    print("SOR-after:")
+    print_row(G, 2)
+    print(G[2, 2])
+
+
 # Benchmark definitions
 BENCHMARKS = {
-    "sor": (bench_SOR, 100, 10, Array2D),
+    "sor": (bench_SOR, 100, 10),
     "sparse_mat_mult": (bench_SparseMatMult, 1000, 50 * 1000),
     "monte_carlo": (bench_MonteCarlo, 100 * 1000),
     "lu": (bench_LU, 100),
@@ -423,3 +513,4 @@ if __name__ == "__main__":
         name = "scimark_%s" % bench
         args = BENCHMARKS[bench]
         runner.bench_time_func(name, *args)
+    print_results()
