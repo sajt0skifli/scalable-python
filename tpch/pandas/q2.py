@@ -1,22 +1,14 @@
-from tpch.utils import (
-    get_region_ds,
-    get_nation_ds,
-    get_supplier_ds,
-    get_part_ds,
-    get_part_supp_ds,
-    export_df,
-)
-
+import tpch.utils as utils
 
 Q_NUM = 2
 
 
 def query():
-    region = get_region_ds()
-    nation = get_nation_ds()
-    supplier = get_supplier_ds()
-    part = get_part_ds()
-    part_supp = get_part_supp_ds()
+    region = utils.get_region_ds()
+    nation = utils.get_nation_ds()
+    supplier = utils.get_supplier_ds()
+    part = utils.get_part_ds()
+    part_supp = utils.get_part_supp_ds()
 
     var1 = 15
     var2 = "BRASS"
@@ -63,4 +55,4 @@ if __name__ == "__main__":
     result = query()
 
     file_name = "q" + str(Q_NUM) + ".out"
-    export_df(result, file_name)
+    utils.export_df(result, file_name)

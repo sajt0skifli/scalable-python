@@ -1,11 +1,12 @@
 import pandas as pd
 
-ROOTPATH = "../TPC-H/tables"
+ROOT_PATH = "../../TPC-H/tables"
+EXPORT_PATH = "../output/"
 
 
 def get_table_path(table_name: str) -> str:
     """Get the path to the table based on the table name."""
-    return f"{ROOTPATH}/{table_name}.tbl"
+    return f"{ROOT_PATH}/{table_name}.tbl"
 
 
 def _read_ds(
@@ -212,7 +213,9 @@ def export_df(df: pd.DataFrame, output_file: str) -> None:
     str_col_width = 25
     num_col_width = 10
 
-    with open(output_file, "w") as f:
+    path = EXPORT_PATH + output_file
+
+    with open(path, "w") as f:
         # Write header
         header = "|".join(str(col).ljust(str_col_width) for col in df.columns)
         f.write(header + "\n")
