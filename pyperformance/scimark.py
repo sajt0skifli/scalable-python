@@ -182,11 +182,13 @@ def SOR_execute(omega, G, cycles):
 
 def bench_SOR(loops, n, cycles):
     """Benchmark for SOR algorithm"""
+    rnd = Random(7)
+
     range_it = range(loops)
     t0 = pyperf.perf_counter()
 
     for _ in range_it:
-        G = Array2D(n, n)
+        G = rnd.RandomMatrix(Array2D(n, n))
         SOR_execute(1.25, G, cycles)
 
     return pyperf.perf_counter() - t0
@@ -513,4 +515,4 @@ if __name__ == "__main__":
         name = "scimark_%s" % bench
         args = BENCHMARKS[bench]
         runner.bench_time_func(name, *args)
-    print_results()
+    # print_results()

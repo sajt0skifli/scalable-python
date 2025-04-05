@@ -97,20 +97,6 @@ def random_matrix_numpy(rows, cols, seed=7):
     return np.array(matrix, dtype=np.float64)
 
 
-# @numba.njit
-# def random_matrix(n, seed=0):
-#     """Generate a random matrix using NumPy"""
-#     np.random.seed(seed)
-#     return np.random.random((n, n))
-#
-#
-# @numba.njit
-# def random_vector(n, seed=0):
-#     """Generate a random vector using NumPy"""
-#     np.random.seed(seed)
-#     return np.random.random(n)
-
-
 @numba.njit
 def SOR_execute(omega, G, cycles):
     """Implementation of SOR (Successive Over-Relaxation) algorithm"""
@@ -133,7 +119,7 @@ def bench_SOR(loops, n, cycles):
     t0 = pyperf.perf_counter()
 
     for _ in range_it:
-        G = np.zeros((n, n), dtype=np.float64)
+        G = random_matrix_numpy(n, n)
         SOR_execute(1.25, G, cycles)
 
     return pyperf.perf_counter() - t0
@@ -154,12 +140,12 @@ def SparseCompRow_matmult(y, val, row, col, x):
 
 def bench_SparseMatMult(cycles, N, nz):
     """Benchmark for sparse matrix multiplication"""
-    x = np.zeros(N, dtype=np.float64)
+    x = np.arange(1, 1000 + 1, dtype=np.float64)
     y = np.zeros(N, dtype=np.float64)
 
     nr = nz // N
     anz = nr * N
-    val = np.zeros(anz, dtype=np.float64)
+    val = np.ones(anz, dtype=np.float64)
     col = np.zeros(nz, dtype=np.int32)
     row = np.zeros(N + 1, dtype=np.int32)
 
@@ -253,8 +239,7 @@ def LU_factor(A):
 
 def bench_LU(cycles, N):
     """Benchmark for LU decomposition"""
-    np.random.seed(7)
-    A = np.random.random((N, N))
+    A = random_matrix_numpy(N, N)
     range_it = range(cycles)
     t0 = pyperf.perf_counter()
 
@@ -381,8 +366,7 @@ def FFT_inverse(data):
 def bench_FFT(loops, N, cycles):
     """Benchmark for FFT"""
     twoN = 2 * N
-    np.random.seed(7)
-    init_vec = np.random.random(twoN)
+    init_vec = random_vector_numpy(twoN)
     range_it = range(loops)
     t0 = pyperf.perf_counter()
 
@@ -461,4 +445,4 @@ if __name__ == "__main__":
         name = "scimark_numba_%s" % bench
         args = BENCHMARKS[bench]
         runner.bench_time_func(name, *args)
-    print_results()
+    # print_results()

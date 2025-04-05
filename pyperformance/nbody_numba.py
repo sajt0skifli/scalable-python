@@ -195,4 +195,4 @@ if __name__ == "__main__":
         name = f"nbody_numba_{bench}"
         args = BENCHMARKS[bench]
         runner.bench_time_func(name, *args)
-    print_results()
+    # print_results()

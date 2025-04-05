@@ -1,5 +1,7 @@
 import pandas as pd
 
+from dask import dataframe as dd
+
 ROOT_PATH = "../../TPC-H/tables"
 EXPORT_PATH = "../output/"
 
@@ -10,8 +12,12 @@ def get_table_path(table_name: str) -> str:
 
 
 def _read_ds(
-    table_name: str, col_names: list = None, dtypes: dict = None, date_cols: list = None
-) -> pd.DataFrame:
+    table_name: str,
+    col_names: list = None,
+    dtypes: dict = None,
+    date_cols: list = None,
+    mode: str = "pandas",
+):
     path = get_table_path(table_name)
 
     # Set up read_csv parameters with an extra column for the trailing delimiter
@@ -29,7 +35,10 @@ def _read_ds(
     if date_cols:
         params["parse_dates"] = date_cols
 
-    df = pd.read_csv(path, **params)
+    if mode == "dask":
+        df = dd.read_csv(path, **params)
+    else:
+        df = pd.read_csv(path, **params)
 
     # Remove the dummy column that's created due to the trailing delimiter
     if "dummy" in df.columns:
@@ -45,7 +54,7 @@ def _read_ds(
     return df
 
 
-def get_customer_ds() -> pd.DataFrame:
+def get_customer_ds(mode: str = "pandas") -> pd.DataFrame:
     cols = [
         "c_custkey",
         "c_name",
@@ -66,10 +75,10 @@ def get_customer_ds() -> pd.DataFrame:
         "c_mktsegment": str,
         "c_comment": str,
     }
-    return _read_ds("customer", cols, dtypes)
+    return _read_ds("customer", cols, dtypes, mode=mode)
 
 
-def get_line_item_ds() -> pd.DataFrame:
+def get_line_item_ds(mode: str = "pandas") -> pd.DataFrame:
     cols = [
         "l_orderkey",
         "l_partkey",
@@ -105,16 +114,16 @@ def get_line_item_ds() -> pd.DataFrame:
     }
     date_cols = ["l_shipdate", "l_commitdate", "l_receiptdate"]
 
-    return _read_ds("lineitem", cols, dtypes, date_cols)
+    return _read_ds("lineitem", cols, dtypes, date_cols, mode=mode)
 
 
-def get_nation_ds() -> pd.DataFrame:
+def get_nation_ds(mode: str = "pandas") -> pd.DataFrame:
     cols = ["n_nationkey", "n_name", "n_regionkey", "n_comment"]
     dtypes = {"n_nationkey": int, "n_name": str, "n_regionkey": int, "n_comment": str}
-    return _read_ds("nation", cols, dtypes)
+    return _read_ds("nation", cols, dtypes, mode=mode)
 
 
-def get_orders_ds() -> pd.DataFrame:
+def get_orders_ds(mode: str = "pandas") -> pd.DataFrame:
     cols = [
         "o_orderkey",
         "o_custkey",
@@ -138,10 +147,10 @@ def get_orders_ds() -> pd.DataFrame:
     }
     date_cols = ["o_orderdate"]
 
-    return _read_ds("orders", cols, dtypes, date_cols)
+    return _read_ds("orders", cols, dtypes, date_cols, mode=mode)
 
 
-def get_part_ds() -> pd.DataFrame:
+def get_part_ds(mode: str = "pandas") -> pd.DataFrame:
     cols = [
         "p_partkey",
         "p_name",
@@ -164,10 +173,10 @@ def get_part_ds() -> pd.DataFrame:
         "p_retailprice": float,
         "p_comment": str,
     }
-    return _read_ds("part", cols, dtypes)
+    return _read_ds("part", cols, dtypes, mode=mode)
 
 
-def get_part_supp_ds() -> pd.DataFrame:
+def get_part_supp_ds(mode: str = "pandas") -> pd.DataFrame:
     cols = ["ps_partkey", "ps_suppkey", "ps_availqty", "ps_supplycost", "ps_comment"]
     dtypes = {
         "ps_partkey": int,
@@ -176,17 +185,16 @@ def get_part_supp_ds() -> pd.DataFrame:
         "ps_supplycost": float,
         "ps_comment": str,
     }
-    return _read_ds("partsupp", cols, dtypes)
+    return _read_ds("partsupp", cols, dtypes, mode=mode)
 
 
-def get_region_ds() -> pd.DataFrame:
+def get_region_ds(mode: str = "pandas") -> pd.DataFrame:
     cols = ["r_regionkey", "r_name", "r_comment"]
     dtypes = {"r_regionkey": int, "r_name": str, "r_comment": str}
-    df = _read_ds("region", cols, dtypes)
-    return df
+    return _read_ds("region", cols, dtypes, mode=mode)
 
 
-def get_supplier_ds() -> pd.DataFrame:
+def get_supplier_ds(mode: str = "pandas") -> pd.DataFrame:
     cols = [
         "s_suppkey",
         "s_name",
@@ -205,10 +213,10 @@ def get_supplier_ds() -> pd.DataFrame:
         "s_acctbal": float,
         "s_comment": str,
     }
-    return _read_ds("supplier", cols, dtypes)
+    return _read_ds("supplier", cols, dtypes, mode=mode)
 
 
-def export_df(df: pd.DataFrame, output_file: str) -> None:
+def export_df(df, output_file: str) -> None:
     # Default column width (adjust as needed)
     str_col_width = 25
     num_col_width = 10

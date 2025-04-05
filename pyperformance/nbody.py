@@ -168,4 +168,4 @@ if __name__ == "__main__":
         name = "nbody_%s" % bench
         args = BENCHMARKS[bench]
         runner.bench_time_func(name, *args)
-    print_results()
+    # print_results()
