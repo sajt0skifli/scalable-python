@@ -1,4 +1,4 @@
-import tpch.utils
+import tpch.utils as utils
 
 from datetime import date
 

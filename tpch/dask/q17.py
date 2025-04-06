@@ -32,7 +32,6 @@ def query() -> pd.DataFrame:
     )
 
     # Merge back and filter rows where quantity is less than 0.2 * avg_quantity
-    # This requires computing since we need to compare values across partitions
     filtered_data = merged_data.merge(avg_quantity, on="p_partkey")
 
     # We need to compute here because we're doing a complex operation
