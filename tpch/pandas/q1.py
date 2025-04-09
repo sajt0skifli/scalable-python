@@ -45,8 +45,12 @@ def bench_q1():
 
 
 if __name__ == "__main__":
-    runner = pyperf.Runner()
-    runner.argparser.set_defaults(
-        quiet=False, loops=1, values=1, processes=1, warmups=0
-    )
-    runner.bench_func("pandas-q1", bench_q1)
+    # runner = pyperf.Runner()
+    # runner.argparser.set_defaults(
+    #     quiet=False, loops=1, values=1, processes=1, warmups=0
+    # )
+    # runner.bench_func("pandas-q1", bench_q1)
+    result = query()
+
+    file_name = "q" + str(Q_NUM) + ".out"
+    export_df(result, file_name)
