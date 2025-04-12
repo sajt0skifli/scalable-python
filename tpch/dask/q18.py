@@ -1,4 +1,6 @@
+import pyperf
 import pandas as pd
+
 from tpch.utils import (
     get_line_item_ds,
     get_customer_ds,
@@ -9,10 +11,16 @@ from tpch.utils import (
 Q_NUM = 18
 
 
-def query() -> pd.DataFrame:
+def get_ds():
     lineitem = get_line_item_ds("dask")
     customer = get_customer_ds("dask")
     orders = get_orders_ds("dask")
+
+    return lineitem, customer, orders
+
+
+def query() -> pd.DataFrame:
+    lineitem, customer, orders = get_ds()
 
     var1 = 300
 
@@ -51,8 +59,19 @@ def query() -> pd.DataFrame:
     return final_result
 
 
-if __name__ == "__main__":
-    result = query()
+def bench_q18():
+    t0 = pyperf.perf_counter()
+    query()
+    return pyperf.perf_counter() - t0
 
-    file_name = "q" + str(Q_NUM) + ".out"
-    export_df(result, file_name)
+
+if __name__ == "__main__":
+    runner = pyperf.Runner()
+    runner.argparser.set_defaults(
+        quiet=False, loops=1, values=1, processes=1, warmups=0
+    )
+    runner.bench_func("dask-q18", bench_q18)
+    # result = query()
+    #
+    # file_name = "q" + str(Q_NUM) + ".out"
+    # export_df(result, file_name)

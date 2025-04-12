@@ -1,3 +1,4 @@
+import pyperf
 import pandas as pd
 import tpch.utils as utils
 
@@ -6,12 +7,18 @@ from datetime import date
 Q_NUM = 7
 
 
-def query():
+def get_ds():
     customer = utils.get_customer_ds()
     lineitem = utils.get_line_item_ds()
     nation = utils.get_nation_ds()
     orders = utils.get_orders_ds()
     supplier = utils.get_supplier_ds()
+
+    return customer, lineitem, nation, orders, supplier
+
+
+def query():
+    customer, lineitem, nation, orders, supplier = get_ds()
 
     var1 = "FRANCE"
     var2 = "GERMANY"
@@ -57,8 +64,19 @@ def query():
     return q_final
 
 
-if __name__ == "__main__":
-    result = query()
+def bench_q7():
+    t0 = pyperf.perf_counter()
+    query()
+    return pyperf.perf_counter() - t0
 
-    file_name = "q" + str(Q_NUM) + ".out"
-    utils.export_df(result, file_name)
+
+if __name__ == "__main__":
+    runner = pyperf.Runner()
+    runner.argparser.set_defaults(
+        quiet=False, loops=1, values=1, processes=1, warmups=0
+    )
+    runner.bench_func("pandas-q7", bench_q7)
+    # result = query()
+    #
+    # file_name = "q" + str(Q_NUM) + ".out"
+    # export_df(result, file_name)

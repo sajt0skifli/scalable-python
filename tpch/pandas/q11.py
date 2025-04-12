@@ -1,3 +1,5 @@
+import pyperf
+
 from tpch.utils import (
     get_part_supp_ds,
     get_supplier_ds,
@@ -8,10 +10,16 @@ from tpch.utils import (
 Q_NUM = 11
 
 
-def query():
+def get_ds():
     partsupp = get_part_supp_ds()
     supplier = get_supplier_ds()
     nation = get_nation_ds()
+
+    return partsupp, supplier, nation
+
+
+def query():
+    partsupp, supplier, nation = get_ds()
 
     var1 = "GERMANY"
     # https://www.tpc.org/tpc_documents_current_versions/pdf/tpc-h_v3.0.1.pdf
@@ -36,8 +44,19 @@ def query():
     return q_final
 
 
-if __name__ == "__main__":
-    result = query()
+def bench_q11():
+    t0 = pyperf.perf_counter()
+    query()
+    return pyperf.perf_counter() - t0
 
-    file_name = "q" + str(Q_NUM) + ".out"
-    export_df(result, file_name)
+
+if __name__ == "__main__":
+    runner = pyperf.Runner()
+    runner.argparser.set_defaults(
+        quiet=False, loops=1, values=1, processes=1, warmups=0
+    )
+    runner.bench_func("pandas-q11", bench_q11)
+    # result = query()
+    #
+    # file_name = "q" + str(Q_NUM) + ".out"
+    # export_df(result, file_name)

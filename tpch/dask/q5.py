@@ -1,3 +1,4 @@
+import pyperf
 import tpch.utils as utils
 
 from datetime import date
@@ -6,13 +7,19 @@ from dask import dataframe as dd
 Q_NUM = 5
 
 
-def query() -> dd.DataFrame:
+def get_ds():
     region_ds = utils.get_region_ds("dask")
     nation_ds = utils.get_nation_ds("dask")
     customer_ds = utils.get_customer_ds("dask")
     line_item_ds = utils.get_line_item_ds("dask")
     orders_ds = utils.get_orders_ds("dask")
     supplier_ds = utils.get_supplier_ds("dask")
+
+    return region_ds, nation_ds, customer_ds, line_item_ds, orders_ds, supplier_ds
+
+
+def query() -> dd.DataFrame:
+    region_ds, nation_ds, customer_ds, line_item_ds, orders_ds, supplier_ds = get_ds()
 
     var1 = "ASIA"
     var2 = date(1994, 1, 1)
@@ -38,8 +45,19 @@ def query() -> dd.DataFrame:
     return result_df.compute()  # type: ignore[no-any-return]
 
 
-if __name__ == "__main__":
-    result = query()
+def bench_q5():
+    t0 = pyperf.perf_counter()
+    query()
+    return pyperf.perf_counter() - t0
 
-    file_name = "q" + str(Q_NUM) + ".out"
-    utils.export_df(result, file_name)
+
+if __name__ == "__main__":
+    runner = pyperf.Runner()
+    runner.argparser.set_defaults(
+        quiet=False, loops=1, values=1, processes=1, warmups=0
+    )
+    runner.bench_func("dask-q5", bench_q5)
+    # result = query()
+    #
+    # file_name = "q" + str(Q_NUM) + ".out"
+    # export_df(result, file_name)

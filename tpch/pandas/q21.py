@@ -1,3 +1,5 @@
+import pyperf
+
 from tpch.utils import (
     get_line_item_ds,
     get_orders_ds,
@@ -9,11 +11,17 @@ from tpch.utils import (
 Q_NUM = 21
 
 
-def query():
+def get_ds():
     lineitem = get_line_item_ds()
     orders = get_orders_ds()
     nation = get_nation_ds()
     supplier = get_supplier_ds()
+
+    return lineitem, orders, nation, supplier
+
+
+def query():
+    lineitem, orders, nation, supplier = get_ds()
 
     var1 = "SAUDI ARABIA"
 
@@ -46,8 +54,19 @@ def query():
     return q_final
 
 
-if __name__ == "__main__":
-    result = query()
+def bench_q21():
+    t0 = pyperf.perf_counter()
+    query()
+    return pyperf.perf_counter() - t0
 
-    file_name = "q" + str(Q_NUM) + ".out"
-    export_df(result, file_name)
+
+if __name__ == "__main__":
+    runner = pyperf.Runner()
+    runner.argparser.set_defaults(
+        quiet=False, loops=1, values=1, processes=1, warmups=0
+    )
+    runner.bench_func("pandas-q21", bench_q21)
+    # result = query()
+    #
+    # file_name = "q" + str(Q_NUM) + ".out"
+    # export_df(result, file_name)

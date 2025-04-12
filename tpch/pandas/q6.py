@@ -1,3 +1,4 @@
+import pyperf
 import pandas as pd
 
 from datetime import date
@@ -9,8 +10,14 @@ from tpch.utils import (
 Q_NUM = 6
 
 
-def query():
+def get_ds():
     lineitem = get_line_item_ds()
+
+    return lineitem
+
+
+def query():
+    lineitem = get_ds()
 
     var1 = date(1994, 1, 1)
     var2 = date(1995, 1, 1)
@@ -32,8 +39,19 @@ def query():
     return pd.DataFrame({"revenue": [result]})
 
 
-if __name__ == "__main__":
-    result = query()
+def bench_q6():
+    t0 = pyperf.perf_counter()
+    query()
+    return pyperf.perf_counter() - t0
 
-    file_name = "q" + str(Q_NUM) + ".out"
-    export_df(result, file_name)
+
+if __name__ == "__main__":
+    runner = pyperf.Runner()
+    runner.argparser.set_defaults(
+        quiet=False, loops=1, values=1, processes=1, warmups=0
+    )
+    runner.bench_func("pandas-q6", bench_q6)
+    # result = query()
+    #
+    # file_name = "q" + str(Q_NUM) + ".out"
+    # export_df(result, file_name)

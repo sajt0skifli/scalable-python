@@ -1,3 +1,4 @@
+import pyperf
 import tpch.utils as utils
 
 from datetime import date
@@ -5,12 +6,18 @@ from datetime import date
 Q_NUM = 20
 
 
-def query():
+def get_ds():
     lineitem = utils.get_line_item_ds()
     nation = utils.get_nation_ds()
     supplier = utils.get_supplier_ds()
     partsupp = utils.get_part_supp_ds()
     part = utils.get_part_ds()
+
+    return lineitem, nation, supplier, partsupp, part
+
+
+def query():
+    lineitem, nation, supplier, partsupp, part = get_ds()
 
     var1 = date(1994, 1, 1)
     var2 = date(1995, 1, 1)
@@ -43,8 +50,19 @@ def query():
     return ret
 
 
-if __name__ == "__main__":
-    result = query()
+def bench_q20():
+    t0 = pyperf.perf_counter()
+    query()
+    return pyperf.perf_counter() - t0
 
-    file_name = "q" + str(Q_NUM) + ".out"
-    utils.export_df(result, file_name)
+
+if __name__ == "__main__":
+    runner = pyperf.Runner()
+    runner.argparser.set_defaults(
+        quiet=False, loops=1, values=1, processes=1, warmups=0
+    )
+    runner.bench_func("pandas-q20", bench_q20)
+    # result = query()
+    #
+    # file_name = "q" + str(Q_NUM) + ".out"
+    # export_df(result, file_name)

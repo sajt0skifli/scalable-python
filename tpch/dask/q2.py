@@ -1,3 +1,4 @@
+import pyperf
 import tpch.utils as utils
 
 from dask import dataframe as dd
@@ -5,12 +6,18 @@ from dask import dataframe as dd
 Q_NUM = 2
 
 
-def query() -> dd.DataFrame:
+def get_ds():
     region_ds = utils.get_region_ds("dask")
     nation_ds = utils.get_nation_ds("dask")
     supplier_ds = utils.get_supplier_ds("dask")
     part_ds = utils.get_part_ds("dask")
     part_supp_ds = utils.get_part_supp_ds("dask")
+
+    return region_ds, nation_ds, supplier_ds, part_ds, part_supp_ds
+
+
+def query() -> dd.DataFrame:
+    region_ds, nation_ds, supplier_ds, part_ds, part_supp_ds = get_ds()
 
     var1 = 15
     var2 = "BRASS"
@@ -54,8 +61,19 @@ def query() -> dd.DataFrame:
     return result_df  # type: ignore[no-any-return]
 
 
-if __name__ == "__main__":
-    result = query()
+def bench_q2():
+    t0 = pyperf.perf_counter()
+    query()
+    return pyperf.perf_counter() - t0
 
-    file_name = "q" + str(Q_NUM) + ".out"
-    utils.export_df(result, file_name)
+
+if __name__ == "__main__":
+    runner = pyperf.Runner()
+    runner.argparser.set_defaults(
+        quiet=False, loops=1, values=1, processes=1, warmups=0
+    )
+    runner.bench_func("dask-q2", bench_q2)
+    # result = query()
+    #
+    # file_name = "q" + str(Q_NUM) + ".out"
+    # export_df(result, file_name)

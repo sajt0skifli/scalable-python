@@ -1,3 +1,5 @@
+import pyperf
+
 from datetime import date
 from tpch.utils import (
     get_supplier_ds,
@@ -8,9 +10,15 @@ from tpch.utils import (
 Q_NUM = 15
 
 
-def query():
+def get_ds():
     supplier = get_supplier_ds()
     lineitem = get_line_item_ds()
+
+    return supplier, lineitem
+
+
+def query():
+    supplier, lineitem = get_ds()
 
     var1 = date(1996, 1, 1)
     var2 = date(1996, 4, 1)
@@ -38,8 +46,19 @@ def query():
     return q_final
 
 
-if __name__ == "__main__":
-    result = query()
+def bench_q15():
+    t0 = pyperf.perf_counter()
+    query()
+    return pyperf.perf_counter() - t0
 
-    file_name = "q" + str(Q_NUM) + ".out"
-    export_df(result, file_name)
+
+if __name__ == "__main__":
+    runner = pyperf.Runner()
+    runner.argparser.set_defaults(
+        quiet=False, loops=1, values=1, processes=1, warmups=0
+    )
+    runner.bench_func("pandas-q15", bench_q15)
+    # result = query()
+    #
+    # file_name = "q" + str(Q_NUM) + ".out"
+    # export_df(result, file_name)

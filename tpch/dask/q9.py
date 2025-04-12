@@ -1,3 +1,4 @@
+import pyperf
 import tpch.utils as utils
 
 from dask import dataframe as dd
@@ -5,13 +6,19 @@ from dask import dataframe as dd
 Q_NUM = 9
 
 
-def query() -> dd.DataFrame:
+def get_ds():
     part = utils.get_part_ds("dask")
     supplier = utils.get_supplier_ds("dask")
     lineitem = utils.get_line_item_ds("dask")
     partsupp = utils.get_part_supp_ds("dask")
     orders = utils.get_orders_ds("dask")
     nation = utils.get_nation_ds("dask")
+
+    return part, supplier, lineitem, partsupp, orders, nation
+
+
+def query() -> dd.DataFrame:
+    part, supplier, lineitem, partsupp, orders, nation = get_ds()
 
     # Chain of merges
     part_partsupp = part.merge(partsupp, left_on="p_partkey", right_on="ps_partkey")
@@ -53,8 +60,19 @@ def query() -> dd.DataFrame:
     return sorted_result.compute()
 
 
-if __name__ == "__main__":
-    result = query()
+def bench_q9():
+    t0 = pyperf.perf_counter()
+    query()
+    return pyperf.perf_counter() - t0
 
-    file_name = "q" + str(Q_NUM) + ".out"
-    utils.export_df(result, file_name)
+
+if __name__ == "__main__":
+    runner = pyperf.Runner()
+    runner.argparser.set_defaults(
+        quiet=False, loops=1, values=1, processes=1, warmups=0
+    )
+    runner.bench_func("dask-q9", bench_q9)
+    # result = query()
+    #
+    # file_name = "q" + str(Q_NUM) + ".out"
+    # export_df(result, file_name)

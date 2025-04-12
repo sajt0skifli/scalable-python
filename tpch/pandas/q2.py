@@ -1,14 +1,21 @@
+import pyperf
 import tpch.utils as utils
 
 Q_NUM = 2
 
 
-def query():
+def get_ds():
     region = utils.get_region_ds()
     nation = utils.get_nation_ds()
     supplier = utils.get_supplier_ds()
     part = utils.get_part_ds()
     part_supp = utils.get_part_supp_ds()
+
+    return region, nation, supplier, part, part_supp
+
+
+def query():
+    region, nation, supplier, part, part_supp = get_ds()
 
     var1 = 15
     var2 = "BRASS"
@@ -51,8 +58,19 @@ def query():
     return q_final
 
 
-if __name__ == "__main__":
-    result = query()
+def bench_q2():
+    t0 = pyperf.perf_counter()
+    query()
+    return pyperf.perf_counter() - t0
 
-    file_name = "q" + str(Q_NUM) + ".out"
-    utils.export_df(result, file_name)
+
+if __name__ == "__main__":
+    runner = pyperf.Runner()
+    runner.argparser.set_defaults(
+        quiet=False, loops=1, values=1, processes=1, warmups=0
+    )
+    runner.bench_func("pandas-q2", bench_q2)
+    # result = query()
+    #
+    # file_name = "q" + str(Q_NUM) + ".out"
+    # export_df(result, file_name)

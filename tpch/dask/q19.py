@@ -1,4 +1,6 @@
+import pyperf
 import pandas as pd
+
 from tpch.utils import (
     get_line_item_ds,
     get_part_ds,
@@ -8,9 +10,15 @@ from tpch.utils import (
 Q_NUM = 19
 
 
-def query() -> pd.DataFrame:
+def get_ds():
     lineitem = get_line_item_ds("dask")
     part = get_part_ds("dask")
+
+    return lineitem, part
+
+
+def query() -> pd.DataFrame:
+    lineitem, part = get_ds()
 
     # First merge the datasets
     merged = part.merge(lineitem, left_on="p_partkey", right_on="l_partkey")
@@ -61,8 +69,19 @@ def query() -> pd.DataFrame:
     return pd.DataFrame({"revenue": [total_revenue]})
 
 
-if __name__ == "__main__":
-    result = query()
+def bench_q19():
+    t0 = pyperf.perf_counter()
+    query()
+    return pyperf.perf_counter() - t0
 
-    file_name = "q" + str(Q_NUM) + ".out"
-    export_df(result, file_name)
+
+if __name__ == "__main__":
+    runner = pyperf.Runner()
+    runner.argparser.set_defaults(
+        quiet=False, loops=1, values=1, processes=1, warmups=0
+    )
+    runner.bench_func("dask-q19", bench_q19)
+    # result = query()
+    #
+    # file_name = "q" + str(Q_NUM) + ".out"
+    # export_df(result, file_name)

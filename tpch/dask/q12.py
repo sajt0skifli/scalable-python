@@ -1,17 +1,25 @@
+import pyperf
+
 from datetime import date
+from dask import dataframe as dd
 from tpch.utils import (
     get_line_item_ds,
     get_orders_ds,
     export_df,
 )
-from dask import dataframe as dd
 
 Q_NUM = 12
 
 
-def query() -> dd.DataFrame:
+def get_ds():
     lineitem = get_line_item_ds("dask")
     orders = get_orders_ds("dask")
+
+    return lineitem, orders
+
+
+def query() -> dd.DataFrame:
+    lineitem, orders = get_ds()
 
     var1 = "MAIL"
     var2 = "SHIP"
@@ -58,8 +66,19 @@ def query() -> dd.DataFrame:
     return sorted_result.compute()
 
 
-if __name__ == "__main__":
-    result = query()
+def bench_q12():
+    t0 = pyperf.perf_counter()
+    query()
+    return pyperf.perf_counter() - t0
 
-    file_name = "q" + str(Q_NUM) + ".out"
-    export_df(result, file_name)
+
+if __name__ == "__main__":
+    runner = pyperf.Runner()
+    runner.argparser.set_defaults(
+        quiet=False, loops=1, values=1, processes=1, warmups=0
+    )
+    runner.bench_func("dask-q12", bench_q12)
+    # result = query()
+    #
+    # file_name = "q" + str(Q_NUM) + ".out"
+    # export_df(result, file_name)

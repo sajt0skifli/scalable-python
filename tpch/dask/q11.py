@@ -1,19 +1,26 @@
+import pyperf
+
+from dask import dataframe as dd
 from tpch.utils import (
     get_part_supp_ds,
     get_supplier_ds,
     get_nation_ds,
     export_df,
 )
-from dask import dataframe as dd
-import numpy as np
 
 Q_NUM = 11
 
 
-def query() -> dd.DataFrame:
+def get_ds():
     partsupp = get_part_supp_ds("dask")
     supplier = get_supplier_ds("dask")
     nation = get_nation_ds("dask")
+
+    return partsupp, supplier, nation
+
+
+def query() -> dd.DataFrame:
+    partsupp, supplier, nation = get_ds()
 
     var1 = "GERMANY"
 
@@ -54,8 +61,19 @@ def query() -> dd.DataFrame:
     return sorted_result.compute()
 
 
-if __name__ == "__main__":
-    result = query()
+def bench_q11():
+    t0 = pyperf.perf_counter()
+    query()
+    return pyperf.perf_counter() - t0
 
-    file_name = "q" + str(Q_NUM) + ".out"
-    export_df(result, file_name)
+
+if __name__ == "__main__":
+    runner = pyperf.Runner()
+    runner.argparser.set_defaults(
+        quiet=False, loops=1, values=1, processes=1, warmups=0
+    )
+    runner.bench_func("dask-q11", bench_q11)
+    # result = query()
+    #
+    # file_name = "q" + str(Q_NUM) + ".out"
+    # export_df(result, file_name)

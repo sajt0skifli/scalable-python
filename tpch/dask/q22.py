@@ -1,4 +1,6 @@
+import pyperf
 import pandas as pd
+
 from tpch.utils import (
     get_customer_ds,
     get_orders_ds,
@@ -8,9 +10,15 @@ from tpch.utils import (
 Q_NUM = 22
 
 
-def query() -> pd.DataFrame:
+def get_ds():
     customer = get_customer_ds("dask")
     orders = get_orders_ds("dask")
+
+    return customer, orders
+
+
+def query() -> pd.DataFrame:
+    customer, orders = get_ds()
 
     # Extract country code and filter by specific codes
     # This is a lightweight operation that can stay in Dask
@@ -50,8 +58,19 @@ def query() -> pd.DataFrame:
     return result.compute()
 
 
-if __name__ == "__main__":
-    result = query()
+def bench_q22():
+    t0 = pyperf.perf_counter()
+    query()
+    return pyperf.perf_counter() - t0
 
-    file_name = "q" + str(Q_NUM) + ".out"
-    export_df(result, file_name)
+
+if __name__ == "__main__":
+    runner = pyperf.Runner()
+    runner.argparser.set_defaults(
+        quiet=False, loops=1, values=1, processes=1, warmups=0
+    )
+    runner.bench_func("dask-q22", bench_q22)
+    # result = query()
+    #
+    # file_name = "q" + str(Q_NUM) + ".out"
+    # export_df(result, file_name)

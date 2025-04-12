@@ -1,16 +1,24 @@
+import pyperf
+
+from dask import dataframe as dd
 from tpch.utils import (
     get_customer_ds,
     get_orders_ds,
     export_df,
 )
-from dask import dataframe as dd
 
 Q_NUM = 13
 
 
-def query() -> dd.DataFrame:
+def get_ds():
     customer = get_customer_ds("dask")
     orders = get_orders_ds("dask")
+
+    return customer, orders
+
+
+def query() -> dd.DataFrame:
+    customer, orders = get_ds()
 
     var1 = "special"
     var2 = "requests"
@@ -49,8 +57,19 @@ def query() -> dd.DataFrame:
     return sorted_result.compute()
 
 
-if __name__ == "__main__":
-    result = query()
+def bench_q13():
+    t0 = pyperf.perf_counter()
+    query()
+    return pyperf.perf_counter() - t0
 
-    file_name = "q" + str(Q_NUM) + ".out"
-    export_df(result, file_name)
+
+if __name__ == "__main__":
+    runner = pyperf.Runner()
+    runner.argparser.set_defaults(
+        quiet=False, loops=1, values=1, processes=1, warmups=0
+    )
+    runner.bench_func("dask-q13", bench_q13)
+    # result = query()
+    #
+    # file_name = "q" + str(Q_NUM) + ".out"
+    # export_df(result, file_name)
