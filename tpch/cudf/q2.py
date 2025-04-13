@@ -1,4 +1,5 @@
 import pyperf
+import cudf
 import tpch.utils as utils
 
 Q_NUM = 2

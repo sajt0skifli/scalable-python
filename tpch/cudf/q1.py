@@ -1,6 +1,6 @@
 import pyperf
-import numpy as np
 import cudf
+import numpy as np
 
 from datetime import date
 from tpch.utils import (
@@ -19,55 +19,33 @@ def get_ds():
 def query():
     lineitem = get_ds()
 
-    # Create target date directly as a GPU timestamp to minimize CPU->GPU transfer
+    # Convert target date to string format that cuDF can compare with
     target_date = np.datetime64(date(1998, 9, 2))
 
-    # Perform filtering and calculations in a single GPU operation chain
-    filtered = lineitem[lineitem["l_shipdate"] <= target_date]
-
-    # Pre-compute derived columns in a single operation to maximize GPU utilization
-    filtered = filtered.assign(
-        disc_price=filtered["l_extendedprice"] * (1 - filtered["l_discount"]),
-        charge=filtered["l_extendedprice"]
-        * (1 - filtered["l_discount"])
-        * (1 + filtered["l_tax"]),
+    q_final = (
+        lineitem[lineitem["l_shipdate"] <= target_date]
+        .assign(disc_price=lambda df: df["l_extendedprice"] * (1 - df["l_discount"]))
+        .assign(charge=lambda df: df["disc_price"] * (1 + df["l_tax"]))
+        .groupby(["l_returnflag", "l_linestatus"], as_index=False)
+        .agg(
+            sum_qty=("l_quantity", "sum"),
+            sum_base_price=("l_extendedprice", "sum"),
+            sum_disc_price=("disc_price", "sum"),
+            sum_charge=("charge", "sum"),
+            avg_qty=("l_quantity", "mean"),
+            avg_price=("l_extendedprice", "mean"),
+            avg_disc=("l_discount", "mean"),
+            count_order=("l_returnflag", "count"),
+        )
+        .sort_values(["l_returnflag", "l_linestatus"])
     )
-
-    # Group and aggregate in a single operation
-    q_final = filtered.groupby(["l_returnflag", "l_linestatus"], as_index=False).agg(
-        {
-            "l_quantity": ["sum", "mean"],
-            "l_extendedprice": ["sum", "mean"],
-            "l_discount": ["mean"],
-            "disc_price": ["sum"],
-            "charge": ["sum"],
-            "l_returnflag": ["count"],
-        }
-    )
-
-    # Flatten multi-index columns
-    q_final.columns = [
-        "l_returnflag",
-        "l_linestatus",
-        "sum_qty",
-        "avg_qty",
-        "sum_base_price",
-        "avg_price",
-        "avg_disc",
-        "sum_disc_price",
-        "sum_charge",
-        "count_order",
-    ]
-
-    # Sort results
-    q_final = q_final.sort_values(["l_returnflag", "l_linestatus"])
 
     return q_final
 
 
 def bench_q1():
     t0 = pyperf.perf_counter()
-    result = query()  # Actually materialize the result for fair benchmarking
+    query()
     return pyperf.perf_counter() - t0
 
 

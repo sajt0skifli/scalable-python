@@ -1,6 +1,6 @@
 import pyperf
-import numpy as np
 import cudf
+import numpy as np
 
 from datetime import date
 from tpch.utils import (
@@ -17,6 +17,7 @@ def get_ds():
     customer = get_customer_ds("cudf")
     orders = get_orders_ds("cudf")
     lineitem = get_line_item_ds("cudf")
+
     return customer, orders, lineitem
 
 
@@ -26,27 +27,36 @@ def query():
     var1 = "BUILDING"
     var2 = np.datetime64(date(1995, 3, 15))
 
-    # Pre-filter with more efficient cuDF operations
+    # Filter the datasets early to reduce merge sizes
     filtered_customer = customer[customer["c_mktsegment"] == var1]
     filtered_orders = orders[orders["o_orderdate"] < var2]
     filtered_lineitem = lineitem[lineitem["l_shipdate"] > var2]
 
-    # Use a more efficient multi-join approach (reduce intermediate results)
-    merged = filtered_customer.merge(
+    # Chain the merge operations
+    merged_co = filtered_customer.merge(
         filtered_orders, left_on="c_custkey", right_on="o_custkey"
-    ).merge(filtered_lineitem, left_on="o_orderkey", right_on="l_orderkey")
+    )
+    merged_col = merged_co.merge(
+        filtered_lineitem, left_on="o_orderkey", right_on="l_orderkey"
+    )
 
-    # Calculate revenue as part of the final operation to maximize GPU parallelism
-    result = (
-        merged.assign(revenue=merged["l_extendedprice"] * (1 - merged["l_discount"]))
-        .groupby(["l_orderkey", "o_orderdate", "o_shippriority"])
-        .agg({"revenue": "sum"})
-        .reset_index()
+    # Calculate revenue and perform final aggregation
+    merged_col = merged_col.assign(
+        revenue=merged_col["l_extendedprice"] * (1 - merged_col["l_discount"])
+    )
+
+    q_final = (
+        merged_col.groupby(
+            ["l_orderkey", "o_orderdate", "o_shippriority"], as_index=False
+        )
+        .agg({"revenue": "sum"})[
+            ["l_orderkey", "revenue", "o_orderdate", "o_shippriority"]
+        ]
         .sort_values(["revenue", "o_orderdate"], ascending=[False, True])
         .head(10)
-    )[["l_orderkey", "revenue", "o_orderdate", "o_shippriority"]]
+    )
 
-    return result
+    return q_final
 
 
 def bench_q3():

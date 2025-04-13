@@ -1,4 +1,5 @@
 import pyperf
+import cudf
 import numpy as np
 import tpch.utils as utils
 

@@ -1,6 +1,6 @@
 import pyperf
-import numpy as np
 import cudf
+import numpy as np
 
 from datetime import date
 from tpch.utils import (
@@ -21,34 +21,33 @@ def get_ds():
 def query():
     lineitem, orders = get_ds()
 
+    # Drop unnecessary columns early to reduce memory usage
+    orders = orders.drop(columns=["o_comment"])
+
     # Convert dates to numpy.datetime64 for cuDF compatibility
     var1 = np.datetime64(date(1993, 7, 1))
     var2 = np.datetime64(date(1993, 10, 1))
 
-    # Select only necessary columns right after loading to reduce memory footprint
-    orders = orders[["o_orderkey", "o_orderpriority", "o_orderdate"]]
-    lineitem = lineitem[["l_orderkey", "l_commitdate", "l_receiptdate"]]
+    # Join and filter in an optimized sequence
+    merged = orders.merge(lineitem, left_on="o_orderkey", right_on="l_orderkey")
 
-    # Pre-filter both dataframes before merge to reduce join size
-    filtered_orders = orders[
-        (orders["o_orderdate"] >= var1) & (orders["o_orderdate"] < var2)
+    # Apply date filters
+    date_filtered = merged[
+        (merged["o_orderdate"] >= var1) & (merged["o_orderdate"] < var2)
     ]
-    filtered_lineitem = lineitem[lineitem["l_commitdate"] < lineitem["l_receiptdate"]]
 
-    # Join pre-filtered dataframes with SortMergeJoin hint for large tables
-    merged = filtered_orders.merge(
-        filtered_lineitem, left_on="o_orderkey", right_on="l_orderkey", how="inner"
-    )
+    # Apply commitment date filter
+    filtered = date_filtered[
+        date_filtered["l_commitdate"] < date_filtered["l_receiptdate"]
+    ]
 
-    # Use drop_duplicates before groupby to reduce aggregation work
-    deduped = merged.drop_duplicates(["o_orderpriority", "o_orderkey"])
-
-    # Use more efficient size() method for counting
+    # Get unique order keys per priority and count them
     q_final = (
-        deduped.groupby("o_orderpriority")
-        .size()
+        filtered.drop_duplicates(["o_orderpriority", "o_orderkey"])
+        .groupby("o_orderpriority")
+        .agg({"o_orderkey": "count"})
         .reset_index()
-        .rename(columns={0: "order_count"})
+        .rename(columns={"o_orderkey": "order_count"})
         .sort_values("o_orderpriority")
     )
 
@@ -57,7 +56,7 @@ def query():
 
 def bench_q4():
     t0 = pyperf.perf_counter()
-    query()
+    result = query()  # Materialize result for accurate timing
     return pyperf.perf_counter() - t0
 
 
