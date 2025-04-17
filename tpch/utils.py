@@ -69,12 +69,15 @@ def _read_ds(
     # Convert parsed dates to date types
     if date_cols:
         for col in date_cols:
-            if mode in ["cudf", "cudask"]:
-                # cuDF and dask-cudf require special date parsing
-                if mode == "cudf":
-                    df[col] = cudf.to_datetime(df[col])
-                else:
-                    df[col] = dd.to_datetime(df[col])
+            if mode == "cudf":
+                df[col] = cudf.to_datetime(df[col])
+            elif mode == "cudask":
+
+                def convert_partition(series):
+                    return cudf.to_datetime(series, format="%Y-%m-%d")
+
+                meta = cudf.Series([], dtype="datetime64[ms]", name=col)
+                df[col] = df[col].map_partitions(convert_partition, meta=meta)
             else:
                 df[col] = df[col].astype("date32[day][pyarrow]")
 
