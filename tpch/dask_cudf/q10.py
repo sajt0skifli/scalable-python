@@ -1,5 +1,5 @@
 import pyperf
-import cudf
+import dask_cudf
 import numpy as np
 
 from datetime import date
@@ -15,10 +15,10 @@ Q_NUM = 10
 
 
 def get_ds():
-    customer = get_customer_ds("cudf")
-    orders = get_orders_ds("cudf")
-    lineitem = get_line_item_ds("cudf")
-    nation = get_nation_ds("cudf")
+    customer = get_customer_ds("cudask")
+    orders = get_orders_ds("cudask")
+    lineitem = get_line_item_ds("cudask")
+    nation = get_nation_ds("cudask")
 
     return customer, orders, lineitem, nation
 
@@ -71,8 +71,10 @@ def query():
         .agg({"revenue": "sum"})
         .reset_index()
         .sort_values(by="revenue", ascending=False)
-        .head(20)
     )
+
+    # Compute the result and take top 20 rows
+    result = result.head(20)
 
     # Order columns as specified in the output
     result = result[
@@ -102,7 +104,7 @@ if __name__ == "__main__":
     runner.argparser.set_defaults(
         quiet=False, loops=1, values=1, processes=1, warmups=0
     )
-    runner.bench_func("cudf-q10", bench_q10)
+    runner.bench_func("dask_cudf-q10", bench_q10)
     # result = query()
     #
     # file_name = "q" + str(Q_NUM) + ".out"

@@ -1,15 +1,14 @@
 import pyperf
-import cudf
-
-from tpch.utils import get_part_supp_ds, get_supplier_ds, get_nation_ds, export_df
+import dask_cudf
+import tpch.utils as utils
 
 Q_NUM = 11
 
 
 def get_ds():
-    partsupp = get_part_supp_ds("cudf")
-    supplier = get_supplier_ds("cudf")
-    nation = get_nation_ds("cudf")
+    partsupp = utils.get_part_supp_ds("cudask")
+    supplier = utils.get_supplier_ds("cudask")
+    nation = utils.get_nation_ds("cudask")
 
     return partsupp, supplier, nation
 
@@ -32,7 +31,9 @@ def query():
     )[["s_suppkey"]]
 
     # Pre-calculate value in partsupp before the join to reduce computation after join
-    partsupp["value"] = partsupp["ps_supplycost"] * partsupp["ps_availqty"]
+    partsupp = partsupp.assign(
+        value=partsupp["ps_supplycost"] * partsupp["ps_availqty"]
+    )
 
     # Only keep the partsupp rows that match German suppliers
     # This significantly reduces the data size for aggregation
@@ -41,17 +42,18 @@ def query():
     )
 
     # Group by partkey and sum values
-    grouped = filtered_partsupp.groupby("ps_partkey", as_index=False).agg(
-        {"value": "sum"}
+    grouped = (
+        filtered_partsupp.groupby("ps_partkey").agg({"value": "sum"}).reset_index()
     )
 
-    # Calculate the threshold using the sum of values
-    sum_value = grouped["value"].sum()
+    # Compute grouped result to calculate threshold
+    grouped_computed = grouped.compute()
+    sum_value = grouped_computed["value"].sum()
     threshold = sum_value * sumres_rate
 
     # Apply threshold filter and sort
     q_final = (
-        grouped[grouped["value"] > threshold]
+        grouped_computed[grouped_computed["value"] > threshold]
         .sort_values(by=["value", "ps_partkey"], ascending=[False, True])
         .reset_index(drop=True)
     )
@@ -70,8 +72,8 @@ if __name__ == "__main__":
     runner.argparser.set_defaults(
         quiet=False, loops=1, values=1, processes=1, warmups=0
     )
-    runner.bench_func("cudf-q11", bench_q11)
+    runner.bench_func("dask_cudf-q11", bench_q11)
     # result = query()
     #
     # file_name = "q" + str(Q_NUM) + ".out"
-    # export_df(result, file_name, is_cudf=True)
+    # utils.export_df(result, file_name, is_cudf=True)
