@@ -1,4 +1,5 @@
 import cudf
+import dask_cudf
 import pandas as pd
 
 from dask import dataframe as dd
@@ -33,24 +34,29 @@ def _read_ds(
         params["dtype"] = dtypes
 
     # Parse dates during reading
-    if date_cols and mode != "cudf":  # cudf handles dates separately
+    if date_cols and mode not in [
+        "cudf",
+        "cudask",
+    ]:  # cudf/cudask handle dates separately
         params["parse_dates"] = date_cols
 
     # Choose the appropriate dataframe implementation based on mode
     if mode == "dask":
         df = dd.read_csv(path, **params)
-    elif mode == "cudf":
-        # cuDF has a slightly different API
+    elif mode == "cudf" or mode == "cudask":
         # Remove pyarrow backend setting for cuDF
-        cudf_params = params.copy()
-        if "dtype_backend" in cudf_params:
-            del cudf_params["dtype_backend"]
+        alt_params = params.copy()
+        if "dtype_backend" in alt_params:
+            del alt_params["dtype_backend"]
 
         # Remove parse_dates for cuDF initial load
-        if "parse_dates" in cudf_params:
-            del cudf_params["parse_dates"]
+        if "parse_dates" in alt_params:
+            del alt_params["parse_dates"]
 
-        df = cudf.read_csv(path, **cudf_params)
+        if mode == "cudf":
+            df = cudf.read_csv(path, **alt_params)
+        else:
+            df = dask_cudf.read_csv(path, **alt_params)
     else:  # pandas mode by default
         df = pd.read_csv(path, **params)
 
@@ -63,9 +69,12 @@ def _read_ds(
     # Convert parsed dates to date types
     if date_cols:
         for col in date_cols:
-            if mode == "cudf":
-                # cuDF requires special date parsing
-                df[col] = cudf.to_datetime(df[col])
+            if mode in ["cudf", "cudask"]:
+                # cuDF and dask-cudf require special date parsing
+                if mode == "cudf":
+                    df[col] = cudf.to_datetime(df[col])
+                else:
+                    df[col] = dd.to_datetime(df[col])
             else:
                 df[col] = df[col].astype("date32[day][pyarrow]")
 

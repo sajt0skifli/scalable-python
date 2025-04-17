@@ -56,7 +56,7 @@ def query():
 
 def bench_q4():
     t0 = pyperf.perf_counter()
-    result = query()  # Materialize result for accurate timing
+    query()
     return pyperf.perf_counter() - t0
 
 
