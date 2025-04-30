@@ -3,6 +3,7 @@ import pandas as pd
 
 from datetime import date
 from dask import dataframe as dd
+from dask.distributed import Client
 from tpch.utils import (
     get_line_item_ds,
     export_df,
@@ -44,6 +45,8 @@ def bench_q6():
 
 
 if __name__ == "__main__":
+    client = Client()
+    print(client.scheduler_info)
     runner = pyperf.Runner()
     runner.argparser.set_defaults(
         quiet=False, loops=1, values=1, processes=1, warmups=0

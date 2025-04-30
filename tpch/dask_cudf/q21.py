@@ -1,6 +1,7 @@
 import pyperf
 import dask_cudf
 
+from dask.distributed import Client
 from tpch.utils import (
     get_line_item_ds,
     get_orders_ds,
@@ -41,25 +42,28 @@ def query():
     # Count distinct suppliers per order and find multi-supplier orders
     all_suppliers_by_order = (
         lineitem[["l_orderkey", "l_suppkey"]]
-        .groupby("l_orderkey", as_index=False)
-        .agg({"l_suppkey": "nunique"})
-        .rename(columns={"l_suppkey": "n_supp_by_order"})
+        .groupby("l_orderkey")
+        .l_suppkey.nunique()
+        .to_frame(name="n_supp_by_order")
+        .reset_index()
         .loc[lambda df: df["n_supp_by_order"] > 1]
     )
 
     # Chain operations for the final result
     q_final = (
         all_suppliers_by_order.merge(late_lineitem, on="l_orderkey")
-        .groupby("l_orderkey", as_index=False)
-        .agg({"l_suppkey": "nunique"})
-        .rename(columns={"l_suppkey": "n_supp_by_order_left"})
+        .groupby("l_orderkey")
+        .l_suppkey.nunique()
+        .to_frame(name="n_supp_by_order_left")
+        .reset_index()
         .loc[lambda df: df["n_supp_by_order_left"] == 1]
         .merge(late_lineitem, on="l_orderkey")
         .merge(supplier_minimal, left_on="l_suppkey", right_on="s_suppkey")
         .merge(nation_filtered, left_on="s_nationkey", right_on="n_nationkey")
         .merge(orders_filtered, left_on="l_orderkey", right_on="o_orderkey")
-        .groupby("s_name", as_index=False)
+        .groupby("s_name")
         .agg({"l_suppkey": "count"})
+        .reset_index()
         .rename(columns={"l_suppkey": "numwait"})
         .sort_values(["numwait", "s_name"], ascending=[False, True])
         .head(100)[["s_name", "numwait"]]
@@ -75,6 +79,8 @@ def bench_q21():
 
 
 if __name__ == "__main__":
+    client = Client()
+    print(client.scheduler_info)
     runner = pyperf.Runner()
     runner.argparser.set_defaults(
         quiet=False, loops=1, values=1, processes=1, warmups=0

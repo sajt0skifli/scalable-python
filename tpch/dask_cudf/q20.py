@@ -4,6 +4,7 @@ import numpy as np
 import tpch.utils as utils
 
 from datetime import date
+from dask.distributed import Client
 
 Q_NUM = 20
 
@@ -74,6 +75,8 @@ def bench_q20():
 
 
 if __name__ == "__main__":
+    client = Client()
+    print(client.scheduler_info)
     runner = pyperf.Runner()
     runner.argparser.set_defaults(
         quiet=False, loops=1, values=1, processes=1, warmups=0
