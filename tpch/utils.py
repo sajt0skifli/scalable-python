@@ -4,8 +4,8 @@ import pandas as pd
 
 from dask import dataframe as dd
 
-ROOT_PATH = "../../TPC-H/tables"
-EXPORT_PATH = "../output/"
+ROOT_PATH = "./TPC-H/tables"
+EXPORT_PATH = "./tpch/output/"
 
 
 def get_table_path(table_name: str) -> str:
