@@ -1,6 +1,5 @@
 import numpy as np
 import numba
-from numba import cuda
 import pyperf
 
 DEFAULT_ITERATIONS = 20000
@@ -108,64 +107,6 @@ def advance(dt, iterations, positions, velocities, masses):
             positions[i, 2] += dt * velocities[i, 2]
 
 
-@cuda.jit
-def advance_kernel(dt, positions, velocities, masses):
-    """CUDA kernel to advance bodies one step."""
-    i = cuda.grid(1)
-    n = positions.shape[0]
-
-    if i < n:
-        ax = 0.0
-        ay = 0.0
-        az = 0.0
-
-        for j in range(n):
-            if i != j:
-                dx = positions[i, 0] - positions[j, 0]
-                dy = positions[i, 1] - positions[j, 1]
-                dz = positions[i, 2] - positions[j, 2]
-
-                dist_sqr = dx * dx + dy * dy + dz * dz
-                mag = dt * (dist_sqr ** (-1.5))
-
-                m_mag = masses[j] * mag
-
-                ax -= dx * m_mag
-                ay -= dy * m_mag
-                az -= dz * m_mag
-
-        # Update velocity
-        velocities[i, 0] += ax
-        velocities[i, 1] += ay
-        velocities[i, 2] += az
-
-        # Update position
-        positions[i, 0] += dt * velocities[i, 0]
-        positions[i, 1] += dt * velocities[i, 1]
-        positions[i, 2] += dt * velocities[i, 2]
-
-
-def advance_cuda(dt, iterations, positions, velocities, masses):
-    """Advance the system using CUDA."""
-    n = positions.shape[0]
-
-    # Copy data to device
-    d_pos = cuda.to_device(positions)
-    d_vel = cuda.to_device(velocities)
-    d_masses = cuda.to_device(masses)
-
-    # Launch kernel
-    threads_per_block = 32
-    blocks_per_grid = (n + (threads_per_block - 1)) // threads_per_block
-
-    for _ in range(iterations):
-        advance_kernel[blocks_per_grid, threads_per_block](dt, d_pos, d_vel, d_masses)
-
-    # Copy results back
-    d_pos.copy_to_host(positions)
-    d_vel.copy_to_host(velocities)
-
-
 @numba.njit
 def report_energy(positions, velocities, masses):
     """Calculate the energy of the system."""
@@ -226,7 +167,7 @@ def bench_nbody(loops, reference, iterations):
 
     for _ in range_it:
         report_energy(positions, velocities, masses)
-        advance_cuda(0.01, iterations, positions, velocities, masses)
+        advance(0.01, iterations, positions, velocities, masses)
         report_energy(positions, velocities, masses)
 
     return pyperf.perf_counter() - t0
