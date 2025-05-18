@@ -2,6 +2,8 @@ import pyperf
 import dask_cudf
 import tpch.utils as utils
 
+from dask.distributed import Client
+
 Q_NUM = 11
 
 
@@ -68,6 +70,8 @@ def bench_q11():
 
 
 if __name__ == "__main__":
+    client = Client()
+    print(client.scheduler_info)
     runner = pyperf.Runner()
     runner.argparser.set_defaults(
         quiet=False, loops=1, values=1, processes=1, warmups=0
