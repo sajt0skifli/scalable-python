@@ -26,7 +26,6 @@ def query():
 
     var1 = "SAUDI ARABIA"
 
-    # Project columns early and filter late deliveries
     lineitem_minimal = lineitem[
         ["l_orderkey", "l_suppkey", "l_receiptdate", "l_commitdate"]
     ]
@@ -35,7 +34,6 @@ def query():
     ]
     late_lineitem = late_lineitem[["l_orderkey", "l_suppkey"]]
 
-    # Count distinct suppliers per order and filter for multi-supplier orders
     q1 = (
         lineitem_minimal[["l_orderkey", "l_suppkey"]]
         .groupby("l_orderkey", as_index=False)
@@ -45,17 +43,15 @@ def query():
         .merge(late_lineitem, on="l_orderkey")
     )
 
-    # Prefilter nation and orders tables
     nation_filtered = nation[nation["n_name"] == var1][["n_nationkey"]]
     orders_filtered = orders[orders["o_orderstatus"] == "F"][["o_orderkey"]]
     supplier_minimal = supplier[["s_suppkey", "s_name", "s_nationkey"]]
 
-    # Find orders where exactly one supplier was late
     q_final = (
         q1.groupby("l_orderkey", as_index=False)
         .agg({"l_suppkey": "nunique"})
         .rename(columns={"l_suppkey": "n_supp_by_order_left"})
-        .query("n_supp_by_order_left == 1")  # Filter earlier
+        .query("n_supp_by_order_left == 1")
         .merge(q1, on="l_orderkey")
         .merge(supplier_minimal, left_on="l_suppkey", right_on="s_suppkey")
         .merge(nation_filtered, left_on="s_nationkey", right_on="n_nationkey")

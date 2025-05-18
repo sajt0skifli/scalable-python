@@ -27,15 +27,12 @@ def query():
     var2 = np.datetime64(date(1994, 1, 1))
     var3 = np.datetime64(date(1995, 1, 1))
 
-    # Filter region first
     region_filtered = region[region["r_name"] == var1]
 
-    # Filter orders by date
     orders_filtered = orders[
         (orders["o_orderdate"] >= var2) & (orders["o_orderdate"] < var3)
     ]
 
-    # Simplify join chain, ensure n_name is preserved throughout
     result = (
         region_filtered.merge(nation, left_on="r_regionkey", right_on="n_regionkey")
         .merge(customer, left_on="n_nationkey", right_on="c_nationkey")
@@ -48,7 +45,6 @@ def query():
         )
     )
 
-    # Calculate revenue and group
     q_final = (
         result.assign(revenue=lambda df: df["l_extendedprice"] * (1 - df["l_discount"]))
         .groupby("n_name")

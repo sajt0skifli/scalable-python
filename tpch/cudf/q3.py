@@ -27,12 +27,10 @@ def query():
     var1 = "BUILDING"
     var2 = np.datetime64(date(1995, 3, 15))
 
-    # Filter the datasets early to reduce merge sizes
     filtered_customer = customer[customer["c_mktsegment"] == var1]
     filtered_orders = orders[orders["o_orderdate"] < var2]
     filtered_lineitem = lineitem[lineitem["l_shipdate"] > var2]
 
-    # Chain the merge operations
     merged_co = filtered_customer.merge(
         filtered_orders, left_on="c_custkey", right_on="o_custkey"
     )
@@ -40,7 +38,6 @@ def query():
         filtered_lineitem, left_on="o_orderkey", right_on="l_orderkey"
     )
 
-    # Calculate revenue and perform final aggregation
     merged_col = merged_col.assign(
         revenue=merged_col["l_extendedprice"] * (1 - merged_col["l_discount"])
     )

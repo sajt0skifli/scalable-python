@@ -24,8 +24,6 @@ def query() -> dd.DataFrame:
     var1 = "special"
     var2 = "requests"
 
-    # Filter out orders containing the specified pattern in comments
-    # Note: Dask string operations are similar to pandas but might behave differently with complex regex
     orders = orders[~orders["o_comment"].str.contains(f"{var1}.*{var2}", regex=True)]
 
     # Left merge to include customers without orders
@@ -54,7 +52,6 @@ def query() -> dd.DataFrame:
         by=["custdist", "c_count"], ascending=[False, False]
     ).reset_index(drop=True)
 
-    # Materialize the result
     return sorted_result.compute()
 
 

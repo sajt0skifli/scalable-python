@@ -19,10 +19,8 @@ def get_ds():
 def query():
     part, supplier, lineitem, partsupp, orders, nation = get_ds()
 
-    # Early filter on part name to reduce join size
     filtered_part = part[part["p_name"].str.contains("green")][["p_partkey", "p_name"]]
 
-    # Select only needed columns to reduce memory usage
     slim_partsupp = partsupp[["ps_partkey", "ps_suppkey", "ps_supplycost"]]
     slim_supplier = supplier[["s_suppkey", "s_nationkey"]]
     slim_lineitem = lineitem[
@@ -38,7 +36,6 @@ def query():
     slim_orders = orders[["o_orderkey", "o_orderdate"]]
     slim_nation = nation[["n_nationkey", "n_name"]]
 
-    # Perform the join chain with filtered/slimmed dataframes
     q_final = (
         filtered_part.merge(slim_partsupp, left_on="p_partkey", right_on="ps_partkey")
         .merge(slim_supplier, left_on="ps_suppkey", right_on="s_suppkey")

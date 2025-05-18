@@ -26,7 +26,6 @@ def query():
     var3 = np.datetime64(date(1995, 1, 1))
     var4 = np.datetime64(date(1996, 12, 31))
 
-    # Filter nations first to reduce join sizes
     n1 = nation[nation["n_name"] == var1]
     n2 = nation[nation["n_name"] == var2]
 
@@ -62,7 +61,6 @@ def query():
     filtered["l_year"] = filtered["l_shipdate"].dt.year
     filtered["revenue"] = filtered["l_extendedprice"] * (1 - filtered["l_discount"])
 
-    # Group and aggregate
     q_final = (
         filtered.groupby(["supp_nation", "cust_nation", "l_year"])
         .agg({"revenue": "sum"})

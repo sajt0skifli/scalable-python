@@ -29,7 +29,6 @@ def query() -> dd.DataFrame:
     var1 = date(1993, 10, 1)
     var2 = date(1994, 1, 1)
 
-    # Step-by-step approach for better readability and debugging
     merged_data = customer.merge(orders, left_on="c_custkey", right_on="o_custkey")
     with_lineitem = merged_data.merge(
         lineitem, left_on="o_orderkey", right_on="l_orderkey"

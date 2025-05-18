@@ -27,19 +27,16 @@ def query():
 
     var1 = "SAUDI ARABIA"
 
-    # Project columns early and filter late deliveries in one chain
     late_lineitem = lineitem[
         ["l_orderkey", "l_suppkey", "l_receiptdate", "l_commitdate"]
     ].loc[lambda df: df["l_receiptdate"] > df["l_commitdate"]][
         ["l_orderkey", "l_suppkey"]
     ]
 
-    # Prefilter nation and orders tables
     nation_filtered = nation[nation["n_name"] == var1][["n_nationkey"]]
     orders_filtered = orders[orders["o_orderstatus"] == "F"][["o_orderkey"]]
     supplier_minimal = supplier[["s_suppkey", "s_name", "s_nationkey"]]
 
-    # Count distinct suppliers per order and find multi-supplier orders
     all_suppliers_by_order = (
         lineitem[["l_orderkey", "l_suppkey"]]
         .groupby("l_orderkey")
@@ -49,7 +46,6 @@ def query():
         .loc[lambda df: df["n_supp_by_order"] > 1]
     )
 
-    # Chain operations for the final result
     q_final = (
         all_suppliers_by_order.merge(late_lineitem, on="l_orderkey")
         .groupby("l_orderkey")

@@ -26,7 +26,6 @@ def query():
     var3 = "CANADA"
     var4 = "forest"
 
-    # Calculate sum_quantity in one chained operation
     q1 = (
         lineitem[(lineitem["l_shipdate"] >= var1) & (lineitem["l_shipdate"] < var2)][
             ["l_partkey", "l_suppkey", "l_quantity"]
@@ -36,17 +35,14 @@ def query():
         .rename(columns={"l_quantity": "sum_quantity"})
     )
 
-    # Multiply in-place to save memory
     q1["sum_quantity"] *= 0.5
 
-    # Filtered nation directly merged with supplier
     q2 = supplier[["s_suppkey", "s_nationkey", "s_name", "s_address"]].merge(
         nation[nation["n_name"] == var3][["n_nationkey"]],
         left_on="s_nationkey",
         right_on="n_nationkey",
     )
 
-    # Chain operations for parts and partsupp
     filtered_join = (
         part[part["p_name"].str.startswith(var4)][["p_partkey"]]
         .merge(
@@ -63,7 +59,6 @@ def query():
         .drop_duplicates()
     )
 
-    # Final merge and sort in one chain
     result = filtered_join.merge(q2, left_on="ps_suppkey", right_on="s_suppkey")[
         ["s_name", "s_address"]
     ].sort_values("s_name")

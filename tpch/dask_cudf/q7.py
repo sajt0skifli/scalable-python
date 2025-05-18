@@ -27,11 +27,9 @@ def query():
     var3 = np.datetime64(date(1995, 1, 1))
     var4 = np.datetime64(date(1996, 12, 31))
 
-    # Filter nations first to reduce join sizes
     n1 = nation[nation["n_name"] == var1]
     n2 = nation[nation["n_name"] == var2]
 
-    # First path: customer in FRANCE, supplier in GERMANY
     q1 = (
         customer.merge(n1, left_on="c_nationkey", right_on="n_nationkey")
         .merge(orders, left_on="c_custkey", right_on="o_custkey")
@@ -42,7 +40,6 @@ def query():
         .rename(columns={"n_name": "supp_nation"})
     )
 
-    # Second path: customer in GERMANY, supplier in FRANCE
     q2 = (
         customer.merge(n2, left_on="c_nationkey", right_on="n_nationkey")
         .merge(orders, left_on="c_custkey", right_on="o_custkey")
@@ -53,17 +50,14 @@ def query():
         .rename(columns={"n_name": "supp_nation"})
     )
 
-    # Combine and process results
     combined = dask_cudf.concat([q1, q2])
     filtered = combined[
         (combined["l_shipdate"] >= var3) & (combined["l_shipdate"] <= var4)
     ]
 
-    # Extract year from timestamp
     filtered["l_year"] = filtered["l_shipdate"].dt.year
     filtered["revenue"] = filtered["l_extendedprice"] * (1 - filtered["l_discount"])
 
-    # Group and aggregate
     q_final = (
         filtered.groupby(["supp_nation", "cust_nation", "l_year"])
         .agg({"revenue": "sum"})

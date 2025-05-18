@@ -22,17 +22,13 @@ def get_ds():
 def query():
     lineitem, orders = get_ds()
 
-    # Drop unnecessary columns early to reduce memory usage
     orders = orders.drop(columns=["o_comment"])
 
-    # Convert dates to numpy.datetime64 for dask_cudf compatibility
     var1 = np.datetime64(date(1993, 7, 1))
     var2 = np.datetime64(date(1993, 10, 1))
 
-    # Chain operations: merge, filter, deduplicate, group by, and sort
     merged = orders.merge(lineitem, left_on="o_orderkey", right_on="l_orderkey")
 
-    # Apply filters correctly
     filtered = merged[
         (merged["o_orderdate"] >= var1)
         & (merged["o_orderdate"] < var2)

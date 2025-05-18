@@ -30,7 +30,6 @@ def query():
         part, left_on="l_partkey", right_on="p_partkey"
     )
 
-    # Calculate both values in a single pass using cuDF's GPU acceleration
     filtered_df["discounted_price"] = filtered_df["l_extendedprice"] * (
         1 - filtered_df["l_discount"]
     )

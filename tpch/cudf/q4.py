@@ -21,27 +21,21 @@ def get_ds():
 def query():
     lineitem, orders = get_ds()
 
-    # Drop unnecessary columns early to reduce memory usage
     orders = orders.drop(columns=["o_comment"])
 
     # Convert dates to numpy.datetime64 for cuDF compatibility
     var1 = np.datetime64(date(1993, 7, 1))
     var2 = np.datetime64(date(1993, 10, 1))
 
-    # Join and filter in an optimized sequence
     merged = orders.merge(lineitem, left_on="o_orderkey", right_on="l_orderkey")
 
-    # Apply date filters
     date_filtered = merged[
         (merged["o_orderdate"] >= var1) & (merged["o_orderdate"] < var2)
     ]
-
-    # Apply commitment date filter
     filtered = date_filtered[
         date_filtered["l_commitdate"] < date_filtered["l_receiptdate"]
     ]
 
-    # Get unique order keys per priority and count them
     q_final = (
         filtered.drop_duplicates(["o_orderpriority", "o_orderkey"])
         .groupby("o_orderpriority")

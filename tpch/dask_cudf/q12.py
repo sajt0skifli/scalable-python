@@ -29,7 +29,6 @@ def query():
     var4 = np.datetime64(date(1995, 1, 1))
     high_priorities = ["1-URGENT", "2-HIGH"]
 
-    # Apply all filters in one step and select only needed columns
     filtered_lineitem = lineitem[
         (lineitem["l_shipmode"].isin([var1, var2]))
         & (lineitem["l_commitdate"] < lineitem["l_receiptdate"])
@@ -38,15 +37,12 @@ def query():
         & (lineitem["l_receiptdate"] < var4)
     ][["l_orderkey", "l_shipmode"]]
 
-    # Extract only required columns from orders
     slim_orders = orders[["o_orderkey", "o_orderpriority"]]
 
-    # Create is_high_priority flag in orders before joining to avoid computation on larger joined dataset
     slim_orders["is_high_priority"] = slim_orders["o_orderpriority"].isin(
         high_priorities
     )
 
-    # Chain operations: join → pre-compute columns → group → sort → convert types → compute
     q_final = (
         filtered_lineitem.merge(
             slim_orders, left_on="l_orderkey", right_on="o_orderkey"

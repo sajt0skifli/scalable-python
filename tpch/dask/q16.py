@@ -29,8 +29,6 @@ def query() -> dd.DataFrame:
     complaint_suppliers = supplier[
         supplier["s_comment"].str.contains(".*Customer.*Complaints.*")
     ][["s_suppkey"]]
-
-    # Filter parts based on multiple conditions
     filtered_parts = part[
         (part["p_brand"] != var1)
         & (~part["p_type"].str.startswith("MEDIUM POLISHED"))
@@ -41,8 +39,6 @@ def query() -> dd.DataFrame:
     parts_with_suppliers = filtered_parts.merge(
         partsupp, left_on="p_partkey", right_on="ps_partkey"
     )
-
-    # Perform anti-join by marking rows to exclude then filtering
     merged = parts_with_suppliers.merge(
         complaint_suppliers, left_on="ps_suppkey", right_on="s_suppkey", how="left"
     )
@@ -62,7 +58,6 @@ def query() -> dd.DataFrame:
         ascending=[False, True, True, True],
     ).reset_index(drop=True)
 
-    # Convert back to Dask DataFrame for consistency
     return result.compute()
 
 

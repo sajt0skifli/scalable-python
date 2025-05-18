@@ -30,13 +30,11 @@ def query():
     var1 = np.datetime64(date(1993, 10, 1))
     var2 = np.datetime64(date(1994, 1, 1))
 
-    # Apply early filters to reduce data size before joins
     filtered_orders = orders[
         (orders["o_orderdate"] >= var1) & (orders["o_orderdate"] < var2)
     ]
     filtered_lineitem = lineitem[lineitem["l_returnflag"] == "R"]
 
-    # Select only needed columns
     slim_customer = customer[
         [
             "c_custkey",
@@ -52,7 +50,6 @@ def query():
     slim_lineitem = filtered_lineitem[["l_orderkey", "l_extendedprice", "l_discount"]]
     slim_nation = nation[["n_nationkey", "n_name"]]
 
-    # Join chain with filtered data
     result = (
         slim_customer.merge(slim_orders, left_on="c_custkey", right_on="o_custkey")
         .merge(slim_lineitem, left_on="o_orderkey", right_on="l_orderkey")
@@ -74,10 +71,7 @@ def query():
         .sort_values(by="revenue", ascending=False)
     )
 
-    # Compute the result and take top 20 rows
     result = result.head(20)
-
-    # Order columns as specified in the output
     result = result[
         [
             "c_custkey",

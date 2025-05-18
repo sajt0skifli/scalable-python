@@ -24,7 +24,6 @@ def query():
     var2 = "BRASS"
     var3 = "EUROPE"
 
-    # Use pipe pattern for cleaner filtering and combine merge operations
     q1 = (
         part.merge(part_supp, left_on="p_partkey", right_on="ps_partkey")
         .merge(supplier, left_on="ps_suppkey", right_on="s_suppkey")
@@ -39,7 +38,6 @@ def query():
         )
     )
 
-    # Find minimum supply cost per part and join in one step
     q_final = (
         q1.groupby("p_partkey")
         .agg({"ps_supplycost": "min"})

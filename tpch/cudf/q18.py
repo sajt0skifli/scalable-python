@@ -24,7 +24,6 @@ def query():
 
     var1 = 300
 
-    # Calculate orders with sum of quantity > 300 (with column selection)
     filtered_orders = (
         lineitem[["l_orderkey", "l_quantity"]]
         .groupby("l_orderkey", as_index=False, sort=False)
@@ -33,19 +32,16 @@ def query():
         .query(f"sum_quantity > {var1}")[["l_orderkey", "sum_quantity"]]
     )
 
-    # Select only needed columns from each table
     orders_cols = orders[["o_orderkey", "o_custkey", "o_orderdate", "o_totalprice"]]
     customer_cols = customer[["c_custkey", "c_name"]]
     lineitem_cols = lineitem[["l_orderkey", "l_quantity"]]
 
-    # Perform joins with optimized column selection
     join1 = orders_cols.merge(
         filtered_orders, left_on="o_orderkey", right_on="l_orderkey"
     )
     join2 = join1.merge(lineitem_cols, left_on="o_orderkey", right_on="l_orderkey")
     join3 = join2.merge(customer_cols, left_on="o_custkey", right_on="c_custkey")
 
-    # Group, sort and format results
     q_final = (
         join3.groupby(
             ["c_name", "c_custkey", "o_orderkey", "o_orderdate", "o_totalprice"],

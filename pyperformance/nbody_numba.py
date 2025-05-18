@@ -87,7 +87,6 @@ def advance(dt, iterations, positions, velocities, masses):
                 dy = positions[i, 1] - positions[j, 1]
                 dz = positions[i, 2] - positions[j, 2]
 
-                # Match the original formula exactly
                 mag = dt * ((dx * dx + dy * dy + dz * dz) ** (-1.5))
 
                 mi_mag = masses[i] * mag

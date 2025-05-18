@@ -23,10 +23,8 @@ def query():
     var1 = "special"
     var2 = "requests"
 
-    # Filter using cuDF string operations
     orders = orders[~orders["o_comment"].str.contains(f"{var1}.*{var2}", regex=True)]
 
-    # Optimized version with named aggregations
     q_final = (
         customer.merge(orders, how="left", left_on="c_custkey", right_on="o_custkey")
         .groupby("c_custkey", as_index=False, sort=False)

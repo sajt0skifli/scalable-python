@@ -27,14 +27,12 @@ def query() -> pd.DataFrame:
 
     var1 = "SAUDI ARABIA"
 
-    # Filter small datasets first
+    # Filter
     filtered_nation = nation[nation["n_name"] == var1]
     filtered_orders = orders[orders["o_orderstatus"] == "F"]
-
-    # Filter line items with late delivery
     late_delivery = lineitem[lineitem["l_receiptdate"] > lineitem["l_commitdate"]]
 
-    # Find orders with multiple suppliers - compute to get a stable intermediate result
+    # Find orders with multiple suppliers
     multi_supp_orders = (
         lineitem.groupby("l_orderkey")
         .l_suppkey.nunique()
@@ -43,10 +41,8 @@ def query() -> pd.DataFrame:
         .persist()  # Mark for caching without computing immediately
     )
 
-    # Filter for orders with more than one supplier
     multi_supp_filtered = multi_supp_orders[multi_supp_orders["n_supp_by_order"] > 1]
 
-    # Join with late delivery items - this step is key for the query
     q1 = multi_supp_filtered.merge(late_delivery, on="l_orderkey").persist()
 
     q1_agg = (

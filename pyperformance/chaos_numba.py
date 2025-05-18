@@ -183,7 +183,7 @@ def get_random_trafo(num_trafos, num_total):
 
 @numba.njit
 def truncate_point(x, y, minx, miny, maxx, maxy):
-    """Truncate point with identical behavior to the original"""
+    """Truncate point"""
     if x >= maxx:
         x = maxx
     if y >= maxy:
@@ -217,14 +217,13 @@ def transform_point(
     trafo_idx=None,
     trafo_val=None,
 ):
-    """Transform point exactly as in the original implementation"""
+    """Transform point"""
     x = (point_x - minx) / width
     y = (point_y - miny) / height
 
     if trafo_idx is None or trafo_val is None:
         trafo_idx, trafo_val = get_random_trafo(num_trafos, num_total)
 
-    # Match original domain calculation
     start, end = spline_get_domain(splines_knots[trafo_idx], splines_degrees[trafo_idx])
     length = end - start
     seg_length = length / num_trafos[trafo_idx]
@@ -240,7 +239,7 @@ def transform_point(
         splines_degrees[trafo_idx],
     )
 
-    # Calculate derivative exactly as in original
+    # Calculate derivative
     if t + 1 / 50000 > end:
         neighbour_x, neighbour_y, neighbour_z = spline_call(
             t - 1 / 50000,
@@ -270,7 +269,7 @@ def transform_point(
             basepoint_z - neighbour_z,
         )
 
-    # Apply offset based on derivative (match original exactly)
+    # Apply offset based on derivative
     mag = gvector_mag(derivative_x, derivative_y, derivative_z)
     if mag != 0:
         basepoint_x += derivative_y / mag * (y - 0.5) * thickness
@@ -305,8 +304,8 @@ def create_image_chaos(
     thickness,
     rng_seed=DEFAULT_RNG_SEED,
 ):
-    """Create a chaos game fractal image with identical results to original"""
-    # Reset random seed exactly as in original
+    """Create a chaos game fractal image"""
+    # Reset random seed
     random.seed(rng_seed)
 
     # Create image array using NumPy
@@ -338,7 +337,7 @@ def create_image_chaos(
             thickness,
         )
 
-        # Convert to pixel coordinates exactly as in original
+        # Convert to pixel coordinates
         x = int((point_x - minx) / width * w)
         y = int((point_y - miny) / height * h)
 
@@ -348,14 +347,13 @@ def create_image_chaos(
         if y == h:
             y -= 1
 
-        # FIXED: Use comma notation for 2D array indexing
         im[x, h - y - 1] = 0
 
     return im
 
 
 def write_ppm(im, filename):
-    """Write image to PPM file with identical output to original"""
+    """Write image to PPM file"""
     w, h = im.shape
 
     with open(filename, "w", encoding="latin1", newline="") as fp:

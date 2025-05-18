@@ -22,7 +22,6 @@ def get_ds():
 def query():
     lineitem, part = get_ds()
 
-    # Early column projection
     part_cols = part[["p_partkey", "p_brand", "p_container", "p_size"]]
     lineitem_cols = lineitem[
         [
@@ -35,19 +34,16 @@ def query():
         ]
     ]
 
-    # Merge with reduced columns
     merged_df = part_cols.merge(
         lineitem_cols, left_on="p_partkey", right_on="l_partkey"
     )
 
-    # Apply initial filters to reduce data volume early
     filtered = merged_df[
         merged_df["l_shipmode"].isin(["AIR", "AIR REG"])
         & (merged_df["l_shipinstruct"] == "DELIVER IN PERSON")
     ]
 
-    # Create masks for the three conditions
-    mask1 = (
+    cond1 = (
         (filtered["p_brand"] == "Brand#12")
         & filtered["p_container"].isin(["SM CASE", "SM BOX", "SM PACK", "SM PKG"])
         & (filtered["l_quantity"] >= 1)
@@ -56,7 +52,7 @@ def query():
         & (filtered["p_size"] <= 5)
     )
 
-    mask2 = (
+    cond2 = (
         (filtered["p_brand"] == "Brand#23")
         & filtered["p_container"].isin(["MED BAG", "MED BOX", "MED PKG", "MED PACK"])
         & (filtered["l_quantity"] >= 10)
@@ -65,7 +61,7 @@ def query():
         & (filtered["p_size"] <= 10)
     )
 
-    mask3 = (
+    cond3 = (
         (filtered["p_brand"] == "Brand#34")
         & filtered["p_container"].isin(["LG CASE", "LG BOX", "LG PACK", "LG PKG"])
         & (filtered["l_quantity"] >= 20)
@@ -74,16 +70,13 @@ def query():
         & (filtered["p_size"] <= 15)
     )
 
-    # Select rows that match any condition and calculate revenue
-    combined_mask = mask1 | mask2 | mask3
+    combined_mask = cond1 | cond2 | cond3
     revenue_calc = filtered[combined_mask]["l_extendedprice"] * (
         1 - filtered[combined_mask]["l_discount"]
     )
 
-    # Sum only at the end (triggers computation)
     total_revenue = revenue_calc.sum().compute()
 
-    # Create final DataFrame
     q_final = pd.DataFrame({"revenue": [total_revenue]})
 
     return q_final

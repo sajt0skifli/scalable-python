@@ -28,7 +28,6 @@ def query() -> dd.DataFrame:
     var4 = date(1995, 1, 1)
     high_priorities = ["1-URGENT", "2-HIGH"]
 
-    # Step-by-step approach for better readability
     merged_data = orders.merge(lineitem, left_on="o_orderkey", right_on="l_orderkey")
 
     # Apply filters
@@ -61,7 +60,7 @@ def query() -> dd.DataFrame:
     # Convert boolean sums to integers
     final_result = agg_result.astype({"high_line_count": int, "low_line_count": int})
 
-    # Sort by l_shipmode (sort=True in pandas)
+    # Sort by l_shipmode
     sorted_result = final_result.sort_values(by="l_shipmode").reset_index(drop=True)
 
     return sorted_result.compute()

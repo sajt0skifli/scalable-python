@@ -165,14 +165,6 @@ def bench_SparseMatMult(cycles, N, nz):
     return pyperf.perf_counter() - t0
 
 
-class MCState:
-    """State for the Monte Carlo simulation"""
-
-    def __init__(self, seed):
-        self.seed = seed
-        np.random.seed(seed)
-
-
 @numba.njit
 def MonteCarlo(Num_samples, seed=113):
     """Monte Carlo pi calculation implementation"""

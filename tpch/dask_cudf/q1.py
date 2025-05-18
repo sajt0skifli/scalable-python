@@ -23,14 +23,13 @@ def query():
     # Convert target date to string format that dask_cudf can compare with
     target_date = np.datetime64(date(1998, 9, 2))
 
-    # Filter and create new columns
     filtered = lineitem[lineitem["l_shipdate"] <= target_date]
     filtered = filtered.assign(
         disc_price=lambda df: df["l_extendedprice"] * (1 - df["l_discount"])
     )
     filtered = filtered.assign(charge=lambda df: df["disc_price"] * (1 + df["l_tax"]))
 
-    # Group by and aggregate - using a dictionary for aggregation
+    # Using a dictionary for aggregation
     agg_dict = {
         "l_quantity": ["sum", "mean"],
         "l_extendedprice": ["sum", "mean"],
@@ -42,7 +41,6 @@ def query():
 
     result = filtered.groupby(["l_returnflag", "l_linestatus"]).agg(agg_dict)
 
-    # Rename columns to match expected output
     result.columns = [
         "sum_qty",
         "avg_qty",
@@ -54,10 +52,8 @@ def query():
         "count_order",
     ]
 
-    # Reset index to get groupby columns back as regular columns
     result = result.reset_index()
 
-    # Sort the results - compute is needed to materialize the results
     q_final = result.reset_index().sort_values(["l_returnflag", "l_linestatus"])
 
     return q_final.compute()

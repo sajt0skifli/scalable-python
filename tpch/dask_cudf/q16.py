@@ -25,31 +25,26 @@ def query():
 
     var1 = "Brand#45"
 
-    # Get complaint suppliers
     complaint_suppliers = supplier[
         supplier["s_comment"].str.contains(".*Customer.*Complaints.*")
     ][["s_suppkey"]]
 
-    # Create filtered part dataset
     filtered_part = part[
         (part["p_brand"] != var1)
         & (~part["p_type"].str.startswith("MEDIUM POLISHED"))
         & part["p_size"].isin([49, 14, 23, 45, 19, 3, 36, 9])
     ][["p_partkey", "p_brand", "p_type", "p_size"]]
 
-    # Perform merges
     merged_df = filtered_part.merge(
         partsupp[["ps_partkey", "ps_suppkey"]],
         left_on="p_partkey",
         right_on="ps_partkey",
     )
 
-    # Continue with pandas/cudf operations after compute
     result_df = merged_df.merge(
         complaint_suppliers, left_on="ps_suppkey", right_on="s_suppkey", how="left"
     )
 
-    # Filter and aggregate
     q_final = (
         result_df[result_df["s_suppkey"].isna()]
         .groupby(["p_brand", "p_type", "p_size"])

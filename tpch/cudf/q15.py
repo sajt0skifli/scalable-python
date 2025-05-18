@@ -25,7 +25,6 @@ def query():
     var1 = np.datetime64(date(1996, 1, 1))
     var2 = np.datetime64(date(1996, 4, 1))
 
-    # Calculate revenue in one chained operation
     revenue = (
         lineitem[(lineitem["l_shipdate"] >= var1) & (lineitem["l_shipdate"] < var2)][
             ["l_suppkey", "l_extendedprice", "l_discount"]
@@ -35,11 +34,9 @@ def query():
         .agg({"total_revenue": "sum"})
     )
 
-    # Get max revenue suppliers
     max_revenue = revenue["total_revenue"].max()
     max_revenue_suppliers = revenue[revenue["total_revenue"] == max_revenue]
 
-    # Join and format final result
     q_final = (
         supplier[["s_suppkey", "s_name", "s_address", "s_phone"]]
         .merge(max_revenue_suppliers, left_on="s_suppkey", right_on="l_suppkey")

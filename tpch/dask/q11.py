@@ -31,7 +31,6 @@ def query() -> dd.DataFrame:
     # S_SUPPKEY identifier SF*10,000 are populated
     sumres_rate = 0.0001 / (supplier_count / 10000)
 
-    # Step-by-step approach for better readability
     merged_data = partsupp.merge(supplier, left_on="ps_suppkey", right_on="s_suppkey")
     with_nation = merged_data.merge(
         nation, left_on="s_nationkey", right_on="n_nationkey"
@@ -49,7 +48,6 @@ def query() -> dd.DataFrame:
     grouped = filtered_data.groupby("ps_partkey")
     agg_result = grouped.agg({"value": "sum"}).reset_index()
 
-    # We need to compute the total sum for filtering
     total_value_sum = agg_result["value"].sum().compute()
     threshold = total_value_sum * sumres_rate
 

@@ -25,29 +25,23 @@ def query():
     var1 = "Brand#23"
     var2 = "MED BOX"
 
-    # Select only needed columns during filtering
     part_keys = part[(part["p_brand"] == var1) & (part["p_container"] == var2)][
         ["p_partkey"]
     ]
 
-    # Join with lineitem (selecting only needed columns)
     joined_data = part_keys.merge(
         lineitem[["l_partkey", "l_quantity", "l_extendedprice"]],
         how="left",
         left_on="p_partkey",
         right_on="l_partkey",
     )
-
-    # Compute to materialize the joined data for aggregation
     joined_data = joined_data.compute()
 
-    # Calculate average quantity per part
     avg_qty = joined_data.groupby("p_partkey", as_index=False).agg(
         {"l_quantity": "mean"}
     )
     avg_qty["avg_quantity"] = avg_qty["l_quantity"] * 0.2
 
-    # Apply threshold filter and calculate final result
     final_result = joined_data.merge(
         avg_qty[["p_partkey", "avg_quantity"]], on="p_partkey"
     )

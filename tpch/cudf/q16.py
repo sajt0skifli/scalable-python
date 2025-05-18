@@ -24,12 +24,10 @@ def query():
 
     var1 = "Brand#45"
 
-    # Get complaint suppliers
     complaint_suppliers = supplier[
         supplier["s_comment"].str.contains(".*Customer.*Complaints.*")
     ][["s_suppkey"]]
 
-    # Create filtered merged dataset in one operation
     result_df = (
         part[
             (part["p_brand"] != var1)
@@ -46,7 +44,6 @@ def query():
         )
     )
 
-    # Filter and aggregate
     q_final = (
         result_df[result_df["s_suppkey"].isna()]
         .groupby(["p_brand", "p_type", "p_size"], as_index=False, sort=False)

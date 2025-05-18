@@ -29,24 +29,18 @@ def query():
     var4 = np.datetime64(date(1995, 1, 1))
     var5 = np.datetime64(date(1996, 12, 31))
 
-    # Early filtering to reduce data volume before joins
     filtered_part = part[part["p_type"] == var3][["p_partkey"]]
     filtered_region = region[region["r_name"] == var2][["r_regionkey"]]
-
-    # Filter orders by date range and extract needed columns
     filtered_orders = orders[
         (orders["o_orderdate"] >= var4) & (orders["o_orderdate"] <= var5)
     ][["o_orderkey", "o_custkey", "o_orderdate"]]
 
-    # Extract only needed columns from other tables
     slim_lineitem = lineitem[
         ["l_orderkey", "l_partkey", "l_suppkey", "l_extendedprice", "l_discount"]
     ]
     slim_supplier = supplier[["s_suppkey", "s_nationkey"]]
     slim_customer = customer[["c_custkey", "c_nationkey"]]
 
-    # Join tables in a single chained operation
-    # Start with the smallest filtered tables to minimize growth of intermediate results
     result = (
         filtered_part.merge(slim_lineitem, left_on="p_partkey", right_on="l_partkey")
         .merge(slim_supplier, left_on="l_suppkey", right_on="s_suppkey")
@@ -65,14 +59,12 @@ def query():
         )
     )
 
-    # Calculate derived columns in a single operation
     result = result.assign(
         volume=result["l_extendedprice"] * (1 - result["l_discount"]),
         o_year=result["o_orderdate"].dt.year,
         brazil_volume=lambda df: df["volume"] * (df["n_name"] == var1),
     )
 
-    # Final aggregation and sorting
     q_final = (
         result.groupby("o_year")
         .agg({"brazil_volume": "sum", "volume": "sum"})

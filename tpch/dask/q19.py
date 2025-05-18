@@ -21,10 +21,8 @@ def get_ds():
 def query() -> pd.DataFrame:
     lineitem, part = get_ds()
 
-    # First merge the datasets
     merged = part.merge(lineitem, left_on="p_partkey", right_on="l_partkey")
 
-    # Common conditions
     base_cond = (merged["l_shipmode"].isin(["AIR", "AIR REG"])) & (
         merged["l_shipinstruct"] == "DELIVER IN PERSON"
     )
@@ -57,16 +55,12 @@ def query() -> pd.DataFrame:
         & (merged["p_size"] <= 15)
     )
 
-    # Apply all conditions
     filtered = merged[base_cond & (cond1 | cond2 | cond3)]
 
     # Calculate the revenue
     revenue = filtered["l_extendedprice"] * (1 - filtered["l_discount"])
-
-    # Sum up the revenue - we need to compute only at the end
     total_revenue = revenue.sum().compute()
 
-    # Create the result DataFrame
     return pd.DataFrame({"revenue": [total_revenue]})
 
 

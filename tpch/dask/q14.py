@@ -25,7 +25,6 @@ def query() -> pd.DataFrame:
     var1 = date(1995, 9, 1)
     var2 = date(1995, 10, 1)
 
-    # Merge lineitem and part
     merged_data = lineitem.merge(part, left_on="l_partkey", right_on="p_partkey")
 
     # Filter by date range
@@ -38,23 +37,13 @@ def query() -> pd.DataFrame:
         1 - filtered_data["l_discount"]
     )
 
-    # Identify promo parts
     filtered_data["is_promo"] = filtered_data["p_type"].str.startswith("PROMO")
-
-    # Calculate promo revenue
-    # This requires computing actual values
     computed_data = filtered_data.compute()
-
-    # Sum of revenue from promo parts
     promo_revenue = computed_data[computed_data["is_promo"]]["revenue"].sum()
-
-    # Total revenue
     total_revenue = computed_data["revenue"].sum()
 
-    # Calculate percentage
     promo_percentage = 100.00 * promo_revenue / total_revenue
 
-    # Format as dataframe with rounded value
     result = pd.DataFrame({"promo_revenue": [round(promo_percentage, 2)]})
 
     return result

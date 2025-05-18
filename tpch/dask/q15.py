@@ -42,7 +42,6 @@ def query() -> dd.DataFrame:
         .reset_index()
     )
 
-    # We need to compute the revenue to find the maximum value
     computed_revenue = revenue.compute()
     max_revenue = computed_revenue["total_revenue"].max()
 

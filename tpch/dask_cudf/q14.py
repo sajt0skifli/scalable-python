@@ -27,25 +27,19 @@ def query():
     var1 = np.datetime64(date(1995, 9, 1))
     var2 = np.datetime64(date(1995, 10, 1))
 
-    # Filter lineitem first to reduce data size before merge
     filtered_lineitem = lineitem[
         (lineitem["l_shipdate"] >= var1) & (lineitem["l_shipdate"] < var2)
     ]
 
-    # Merge filtered lineitem with part
     filtered_df = filtered_lineitem.merge(
         part, left_on="l_partkey", right_on="p_partkey"
     )
-
-    # Calculate both values in a single pass
     filtered_df = filtered_df.assign(
         discounted_price=lambda df: df["l_extendedprice"] * (1 - df["l_discount"]),
     )
 
-    # Compute the result to materialize it
     result_df = filtered_df.compute()
 
-    # Use pandas for the final calculation as it's simpler for this small result
     result_df["promo_price"] = result_df["discounted_price"].where(
         result_df["p_type"].str.startswith("PROMO"), 0
     )

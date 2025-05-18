@@ -20,27 +20,20 @@ def get_ds():
 def query():
     customer, orders = get_ds()
 
-    # Early projection and filtering in one step
     cntry_codes = ["13", "31", "23", "29", "30", "18", "17"]
     q1 = customer[["c_custkey", "c_phone", "c_acctbal"]]
 
-    # Extract country code and filter in one chain
     q1["cntrycode"] = q1["c_phone"].str.slice(0, 2)
     q1 = q1[q1["cntrycode"].isin(cntry_codes)]
 
-    # Calculate average of positive balances directly
     q2 = q1[q1["c_acctbal"] > 0.0]["c_acctbal"].mean()
-
-    # Get unique customer keys from orders more efficiently
     q3 = orders[["o_custkey"]].drop_duplicates()
 
-    # Merge and filter using standard boolean operations
     merged_df = q1.merge(q3, left_on="c_custkey", right_on="o_custkey", how="left")
     filtered_df = merged_df[
         merged_df["o_custkey"].isna() & (merged_df["c_acctbal"] > q2)
     ]
 
-    # Complete the aggregation
     q_final = (
         filtered_df.groupby("cntrycode")
         .agg(numcust=("c_acctbal", "count"), totacctbal=("c_acctbal", "sum"))

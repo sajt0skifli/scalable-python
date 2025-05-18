@@ -38,7 +38,6 @@ def query() -> pd.DataFrame:
         (lineitem["l_shipdate"] >= var1) & (lineitem["l_shipdate"] < var2)
     ]
 
-    # Compute the aggregation - this is relatively small result
     agg_lineitem = (
         date_filtered_lineitem.groupby(["l_partkey", "l_suppkey"])
         .agg(sum_quantity=("l_quantity", "sum"))
@@ -47,22 +46,18 @@ def query() -> pd.DataFrame:
         .compute()
     )
 
-    # Filter parts
+    # Filter
     filtered_parts = part[part["p_name"].str.startswith(var4)]
-
-    # Filter nations and join with suppliers - this is a small dataset, so computing is fine
     nation_supplier = (
         nation[nation["n_name"] == var3]
         .merge(supplier, left_on="n_nationkey", right_on="s_nationkey")
         .compute()
     )
 
-    # Join parts and partsupp in Dask
     parts_partsupp = filtered_parts.merge(
         partsupp, left_on="p_partkey", right_on="ps_partkey"
     ).compute()
 
-    # Now perform the remaining operations in pandas which is efficient for these steps
     result = (
         parts_partsupp.merge(
             agg_lineitem,

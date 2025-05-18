@@ -26,7 +26,6 @@ def query():
     var4 = 0.07
     var5 = 24
 
-    # Use efficient filtering
     filtered = lineitem[
         (lineitem["l_shipdate"] >= var1)
         & (lineitem["l_shipdate"] < var2)
@@ -38,7 +37,6 @@ def query():
     # Calculate revenue
     result = (filtered["l_extendedprice"] * filtered["l_discount"]).sum()
 
-    # Return result as a DataFrame
     return pd.DataFrame({"revenue": [result]})
 
 
