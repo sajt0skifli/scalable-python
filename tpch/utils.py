@@ -1,3 +1,5 @@
+import cudf
+import dask_cudf
 import pandas as pd
 
 from dask import dataframe as dd
@@ -32,12 +34,30 @@ def _read_ds(
         params["dtype"] = dtypes
 
     # Parse dates during reading
-    if date_cols:
+    if date_cols and mode not in [
+        "cudf",
+        "cudask",
+    ]:  # cudf/cudask handle dates separately
         params["parse_dates"] = date_cols
 
+    # Choose the appropriate dataframe implementation based on mode
     if mode == "dask":
         df = dd.read_csv(path, **params)
-    else:
+    elif mode == "cudf" or mode == "cudask":
+        # Remove pyarrow backend setting for cuDF
+        alt_params = params.copy()
+        if "dtype_backend" in alt_params:
+            del alt_params["dtype_backend"]
+
+        # Remove parse_dates for cuDF initial load
+        if "parse_dates" in alt_params:
+            del alt_params["parse_dates"]
+
+        if mode == "cudf":
+            df = cudf.read_csv(path, **alt_params)
+        else:
+            df = dask_cudf.read_csv(path, **alt_params)
+    else:  # pandas mode by default
         df = pd.read_csv(path, **params)
 
     # Remove the dummy column that's created due to the trailing delimiter
@@ -46,10 +66,20 @@ def _read_ds(
     elif df.columns.size > 0 and df.iloc[:, -1].isna().all():
         df = df.iloc[:, :-1]
 
-    # Convert parsed dates to date32 type
+    # Convert parsed dates to date types
     if date_cols:
         for col in date_cols:
-            df[col] = df[col].astype("date32[day][pyarrow]")
+            if mode == "cudf":
+                df[col] = cudf.to_datetime(df[col])
+            elif mode == "cudask":
+
+                def convert_partition(series):
+                    return cudf.to_datetime(series, format="%Y-%m-%d")
+
+                meta = cudf.Series([], dtype="datetime64[ms]", name=col)
+                df[col] = df[col].map_partitions(convert_partition, meta=meta)
+            else:
+                df[col] = df[col].astype("date32[day][pyarrow]")
 
     return df
 
@@ -216,12 +246,15 @@ def get_supplier_ds(mode: str = "pandas") -> pd.DataFrame:
     return _read_ds("supplier", cols, dtypes, mode=mode)
 
 
-def export_df(df, output_file: str) -> None:
+def export_df(df, output_file: str, is_cudf: bool = False) -> None:
     # Default column width (adjust as needed)
     str_col_width = 25
     num_col_width = 10
 
     path = EXPORT_PATH + output_file
+
+    if is_cudf:
+        df = df.to_pandas()
 
     with open(path, "w") as f:
         # Write header
